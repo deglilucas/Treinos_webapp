@@ -3,6 +3,7 @@ import { garantirSeed } from './db/seed.js';
 import { iniciarRouter } from './router.js';
 import { icone } from './ui/icones.js';
 import { $, esc, toast } from './ui/dom.js';
+import { iniciarNotificacoes } from './lib/notificacoes.js';
 
 import * as inicio from './screens/inicio.js';
 import * as treinar from './screens/treinar.js';
@@ -48,6 +49,8 @@ async function iniciar() {
 
   iniciarRouter($('#view'), { inicio, treinar, progresso, ajustes }, marcarAbaAtiva);
   registrarServiceWorker();
+  // Se um botão da notificação avançou o treino, redesenha a tela atual.
+  iniciarNotificacoes(() => window.dispatchEvent(new HashChangeEvent('hashchange')));
 }
 
 iniciar().catch((err) => {

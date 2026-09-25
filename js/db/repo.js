@@ -154,6 +154,13 @@ export const encerrarDescanso = (id, inicioEsperado) => alterarSessao(id, async 
   if (inicioEsperado == null || s.descanso_inicio === inicioEsperado) await fecharDescanso(t, s, agora);
 });
 
+/**
+ * Valores digitados e ainda não registrados ({ 'itemId:numero': {peso, reps} }).
+ * Ficam na sessão para sobreviver ao app fechado e para o botão da notificação
+ * registrar exatamente o que está na tela.
+ */
+export const salvarRascunhos = (id, rascunhos) => alterarSessao(id, (s) => { s.rascunhos = rascunhos; });
+
 /** Muda o alvo do descanso (só a referência do bipe; o descanso continua até você encerrar). */
 export const ajustarDescanso = (id, deltaSeg) => alterarSessao(id, (s) => {
   if (!s.descanso_inicio) return;

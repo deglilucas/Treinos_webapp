@@ -12,7 +12,7 @@ import {
   obterSessao, retomarSessao, pausarSessao, concluirSessao, cancelarSessao,
   exerciciosDoTreino, seriesDaSessao, ultimaReferencia, registrarSerie,
   atualizarSerie, removerSerie, encerrarDescanso, ajustarDescanso,
-  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino,
+  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino, salvarRascunhos,
 } from '../db/repo.js';
 import { get } from '../db/db.js';
 import {
@@ -21,6 +21,7 @@ import {
 } from '../lib/timer.js';
 import { montarMidia } from '../lib/midia.js';
 import { prepararAudio, alertar } from '../lib/alerta.js';
+import { deveOferecer, marcarOferecido, ativar } from '../lib/notificacoes.js';
 import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { abrirSheet } from '../ui/sheet.js';
@@ -77,7 +78,19 @@ export async function render(view, sessaoId) {
 
   let series = seriesIniciais;
   const extras = {};             // séries adicionadas além do planejado, por item
-  const rascunhos = new Map();   // valores digitados e ainda não registrados
+  // Valores digitados e ainda não registrados; voltam da sessão salva.
+  const rascunhos = new Map(Object.entries(sessao.rascunhos ?? {}));
+  let esperaRascunho = null; // gravação pendente (só grava o que mudou aqui, nunca por cima da notificação)
+  const persistirRascunhos = () => {
+    clearTimeout(esperaRascunho);
+    esperaRascunho = null;
+    salvarRascunhos(sessao.id, Object.fromEntries(rascunhos)).catch(() => {});
+  };
+  const agendarRascunhos = () => {
+    clearTimeout(esperaRascunho);
+    esperaRascunho = setTimeout(persistirRascunhos, 300);
+  };
+  const pesoDigitado = new Set(); // linhas cujo peso você mexeu (não recebem o de cima)
   const itemPorId = new Map(itens.map((i) => [i.id, i]));
 
   // ---------- Modelo das linhas ----------
@@ -99,14 +112,19 @@ export async function render(view, sessaoId) {
 
   const alvoSeg = (item) => item.duracao_alvo ?? item.exercicio.duracao_alvo ?? 60;
 
-  /** Valores pré-preenchidos: rascunho > série anterior de hoje > mesma série da última vez. */
+  /**
+   * Valores pré-preenchidos, campo a campo: o que você digitou > série anterior
+   * de hoje > mesma série da última vez.
+   */
   function sugestao(item, numero) {
-    const rascunho = rascunhos.get(`${item.id}:${numero}`);
-    if (rascunho) return rascunho;
+    const rascunho = rascunhos.get(`${item.id}:${numero}`) ?? {};
     const anterior = seriesDo(item).filter((s) => s.numero_serie < numero).at(-1);
     const ref = refs.get(item.id)?.series ?? [];
     const base = anterior ?? ref.find((s) => s.numero_serie === numero) ?? ref.at(-1);
-    return { peso: fmtPeso(base?.peso), reps: base?.reps ?? '' };
+    return {
+      peso: rascunho.peso !== undefined && rascunho.peso !== '' ? rascunho.peso : fmtPeso(base?.peso),
+      reps: rascunho.reps !== undefined && rascunho.reps !== '' ? rascunho.reps : base?.reps ?? '',
+    };
   }
 
   // ---------- HTML ----------
@@ -243,7 +261,7 @@ export async function render(view, sessaoId) {
     });
     sessao = r.sessao;
     series = [...series, r.serie];
-    rascunhos.delete(`${item.id}:${numero}`);
+    if (rascunhos.delete(`${item.id}:${numero}`)) persistirRascunhos();
     desenharSeries(item);
     tick(Date.now());
     if (restantes <= 0) perguntarConclusao();
@@ -338,10 +356,25 @@ export async function render(view, sessaoId) {
     const linha = campo.closest('.serie');
     if (linha.classList.contains('feita')) return;
     const item = itemPorId.get(campo.closest('.card-exercicio').dataset.item);
-    rascunhos.set(`${item.id}:${linha.dataset.num}`, {
-      peso: linha.querySelector('[name=peso]').value,
-      reps: linha.querySelector('[name=reps]').value,
+    const guardar = (l) => rascunhos.set(`${item.id}:${l.dataset.num}`, {
+      peso: l.querySelector('[name=peso]').value,
+      reps: l.querySelector('[name=reps]').value,
     });
+    guardar(linha);
+
+    // Peso digitado desce para as próximas séries ainda não feitas, até
+    // encontrar uma em que você mexeu. As de cima e as já registradas ficam.
+    if (campo.name === 'peso') {
+      pesoDigitado.add(`${item.id}:${linha.dataset.num}`);
+      const num = Number(linha.dataset.num);
+      for (const outra of campo.closest('.series').querySelectorAll('.serie:not(.feita)')) {
+        if (Number(outra.dataset.num) <= num) continue;
+        if (pesoDigitado.has(`${item.id}:${outra.dataset.num}`)) break;
+        outra.querySelector('[name=peso]').value = campo.value;
+        guardar(outra);
+      }
+    }
+    agendarRascunhos();
   });
 
   // Corrigir uma série já registrada.
@@ -430,6 +463,10 @@ export async function render(view, sessaoId) {
 
   const pararTicker = criarTicker(tick);
 
+  // Ao sair do app, grava na hora o que estava digitado (a notificação usa esses valores).
+  const aoEsconder = () => { if (document.visibilityState === 'hidden' && esperaRascunho) persistirRascunhos(); };
+  document.addEventListener('visibilitychange', aoEsconder);
+
   // Mantém a tela acesa durante o treino, onde o navegador suporta.
   let wakeLock = null;
   const pedirWakeLock = async () => {
@@ -507,8 +544,25 @@ export async function render(view, sessaoId) {
     await finalizar();
   };
 
+  // Na primeira vez, oferece a notificação com botões (a permissão precisa de um toque).
+  (async () => {
+    if (!(await deveOferecer())) return;
+    await marcarOferecido();
+    const ok = await abrirSheet({
+      titulo: 'Treino na notificação?',
+      texto: 'Com a tela bloqueada, a notificação mostra o descanso ou a série atual, com botão para iniciar ou concluir sem abrir o app. Dá pra mudar depois em Ajustes.',
+      acoes: [{ id: 'sim', rotulo: 'Ativar notificação', primario: true }],
+      rotuloFechar: 'Agora não',
+    });
+    if (!ok) return;
+    const resultado = await ativar();
+    toast(resultado === 'granted' ? 'Notificação ativada' : 'O navegador bloqueou a permissão');
+  })();
+
   return () => {
     pararTicker();
+    document.removeEventListener('visibilitychange', aoEsconder);
+    if (esperaRascunho) persistirRascunhos();
     document.removeEventListener('visibilitychange', pedirWakeLock);
     wakeLock?.release().catch(() => {});
   };
