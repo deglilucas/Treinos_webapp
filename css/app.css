@@ -880,3 +880,12 @@ select.entrada {
 .card-exercicio .ex-nome + .series-cab { margin-top: 12px; }
 .serie .botao-icone-perigo { justify-self: end; }
 #excluir-sessao { margin-top: 16px; }
+.serie-descanso { grid-column: 2 / -1; margin: -2px 0 2px; font-size: 12px; color: var(--text-3); }
+.descanso-acoes .chip { padding: 0 10px; }
+
+/* ---------- Medidas corporais ---------- */
+.botao-novo-registro { margin-top: 18px; }
+.vazio-corpo { margin-top: 16px; }
+#conteudo-progresso .botao-novo-registro + .chips { margin-top: 14px; }
+.grade-medidas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+.campo-medida .unidade { color: var(--text-3); font-weight: 500; }

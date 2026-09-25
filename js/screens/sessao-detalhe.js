@@ -77,8 +77,12 @@ export async function render(view, sessaoId, voltarPara) {
 
   function desenharStats() {
     const volume = series.reduce((t, s) => t + (s.peso != null && s.reps ? s.peso * s.reps : 0), 0);
+    const descansos = series.map((s) => s.descanso_seg).filter((d) => d != null);
+    const primeiro = descansos.length
+      ? `<div class="stat"><div class="stat-rotulo">Descanso médio</div><div class="stat-valor">${formatarCronometro((descansos.reduce((a, b) => a + b, 0) / descansos.length) * 1000)}</div></div>`
+      : `<div class="stat"><div class="stat-rotulo">Exercícios</div><div class="stat-valor">${grupos().length}</div></div>`;
     $('#stats-sessao', view).innerHTML = `
-      <div class="stat"><div class="stat-rotulo">Exercícios</div><div class="stat-valor">${grupos().length}</div></div>
+      ${primeiro}
       <div class="stat"><div class="stat-rotulo">Séries</div><div class="stat-valor">${series.length}</div></div>
       <div class="stat"><div class="stat-rotulo">Volume</div><div class="stat-valor">${Math.round(volume).toLocaleString('pt-BR')} kg</div></div>`;
   }
@@ -93,6 +97,7 @@ export async function render(view, sessaoId, voltarPara) {
         <span class="serie-num">${serie.numero_serie}</span>
         ${campos}
         <button type="button" class="botao-icone botao-icone-perigo" data-remover aria-label="Apagar série ${serie.numero_serie}">${icone('lixeira')}</button>
+        ${serie.descanso_seg != null ? `<span class="serie-descanso">descanso depois: ${formatarCronometro(serie.descanso_seg * 1000)}</span>` : ''}
       </div>`;
   }
 

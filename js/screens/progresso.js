@@ -6,14 +6,16 @@ import {
 } from '../db/analise.js';
 import { GRUPOS } from '../db/seed.js';
 import {
-  chaveData, somarDias, semanaDe, rotuloDia, rotuloIntervalo,
+  chaveData, somarDias, semanaDe, deChave, rotuloDia, rotuloIntervalo,
 } from '../lib/datas.js';
 import { formatarCronometro } from '../lib/timer.js';
 import { esc, $ } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { chips } from '../ui/controles.js';
 import { graficoLinha } from '../ui/grafico.js';
+import { listarMedidas, INDICADORES, valorDe } from '../db/medidas.js';
 import * as detalhe from './sessao-detalhe.js';
+import * as formMedidas from './medidas-form.js';
 
 // Escolhas da tela sobrevivem à troca de abas.
 const estado = {
@@ -23,6 +25,7 @@ const estado = {
   metrica: {},            // por exercício
   semana: null,           // início (domingo) da semana exibida
   medidaGrupo: 'series',
+  indicador: 'peso_corporal',
 };
 
 const PERIODOS = [
@@ -250,29 +253,102 @@ function vistaGrupos(el, h) {
   });
 }
 
+// ---------- Vista do corpo (medidas) ----------
+
+function vistaCorpo(el, medidas) {
+  redesenharGrafico = null;
+  const botaoNovo = `<a class="botao botao-novo-registro" href="#/progresso/medidas/nova">${icone('mais')}Registrar medidas</a>`;
+  if (!medidas.length) {
+    el.innerHTML = `${botaoNovo}<div class="vazio vazio-corpo">Registre peso e medidas de tempos em tempos pra acompanhar a evolução aqui.</div>`;
+    return;
+  }
+
+  const disponiveis = INDICADORES.filter((ind) => medidas.some((m) => valorDe(m, ind.id) != null));
+  if (!disponiveis.some((d) => d.id === estado.indicador)) estado.indicador = disponiveis[0].id;
+  const ind = disponiveis.find((d) => d.id === estado.indicador);
+  const formatar = (v) => `${numero(v)} ${ind.unidade}`;
+  const pontos = medidas.filter((m) => valorDe(m, ind.id) != null);
+  const primeiro = pontos[0];
+  const ultimo = pontos.at(-1);
+  const variacao = valorDe(ultimo, ind.id) - valorDe(primeiro, ind.id);
+
+  const resumo = (m) => {
+    const partes = [];
+    if (m.peso_corporal != null) partes.push(`${numero(m.peso_corporal)} kg`);
+    const outras = Object.keys(m.medidas ?? {}).length;
+    if (outras) partes.push(outras === 1 ? '1 medida' : `${outras} medidas`);
+    return partes.join(' · ');
+  };
+
+  el.innerHTML = `
+    ${botaoNovo}
+    ${chips('indicador', disponiveis.map((d) => ({ valor: d.id, rotulo: d.rotulo })), ind.id)}
+    <div class="stats">
+      ${statTile('Atual', formatar(valorDe(ultimo, ind.id)), dataCurta(ultimo.data))}
+      ${statTile('Variação', pontos.length > 1 ? sinal(variacao, formatar) : '—', pontos.length > 1 ? `desde ${dataCurta(primeiro.data)}` : '')}
+      ${statTile('Registros', String(pontos.length))}
+    </div>
+    ${pontos.length > 1
+      ? '<div class="card grafico" id="grafico"></div>'
+      : '<div class="vazio">Com o próximo registro, o gráfico aparece aqui.</div>'}
+    <h2 class="rotulo-secao">Registros</h2>
+    <div class="lista">
+      ${[...medidas].reverse().map((m) => `
+        <a class="item-historico item-link item-compacto" href="#/progresso/medidas/${esc(m.id)}">
+          <div class="item-texto">
+            <div class="item-titulo">${esc(rotuloDia(m.data))}</div>
+            <div class="item-sub">${esc(resumo(m))}</div>
+          </div>
+          ${valorDe(m, ind.id) != null ? `<div class="item-valor">${esc(formatar(valorDe(m, ind.id)))}</div>` : ''}
+          ${icone('avancar')}
+        </a>`).join('')}
+    </div>`;
+
+  const desenhar = () => {
+    const alvo = $('#grafico', el);
+    if (!alvo) return;
+    graficoLinha(alvo, pontos.map((m) => ({
+      t: deChave(m.data).getTime(),
+      y: valorDe(m, ind.id),
+      rotuloData: dataCurta(m.data),
+    })), { formatar, formatarEixo: (v) => numero(v, 1) });
+  };
+  desenhar();
+  redesenharGrafico = desenhar;
+
+  el.querySelector('[data-chips=indicador]').onclick = (e) => {
+    const chip = e.target.closest('.chip-filtro');
+    if (!chip) return;
+    estado.indicador = chip.dataset.valor;
+    vistaCorpo(el, medidas);
+  };
+}
+
 // ---------- Tela ----------
 
 export async function render(view, rota) {
   if (rota?.params?.[0] === 'sessao' && rota.params[1]) return detalhe.render(view, rota.params[1], 'progresso');
+  if (rota?.params?.[0] === 'medidas' && rota.params[1]) return formMedidas.render(view, rota.params[1]);
 
-  const h = await carregarHistorico();
+  const [h, medidas] = await Promise.all([carregarHistorico(), listarMedidas()]);
   view.innerHTML = `
     <h1 class="titulo">Progresso</h1>
-    <div class="segmentado vista-progresso" role="group" aria-label="Visão">
+    <div class="segmentado segmentado-3 vista-progresso" role="group" aria-label="Visão">
       <button type="button" data-vista="exercicios" aria-pressed="${estado.vista === 'exercicios'}">Exercícios</button>
-      <button type="button" data-vista="grupos" aria-pressed="${estado.vista === 'grupos'}">Grupos musculares</button>
+      <button type="button" data-vista="grupos" aria-pressed="${estado.vista === 'grupos'}">Grupos</button>
+      <button type="button" data-vista="corpo" aria-pressed="${estado.vista === 'corpo'}">Corpo</button>
     </div>
     <div id="conteudo-progresso"></div>`;
 
   const conteudo = $('#conteudo-progresso', view);
-  if (!h.series.length) {
-    conteudo.innerHTML = '<div class="vazio">Conclua um treino e a sua evolução aparece aqui.</div>';
-    return;
-  }
 
   const mostrar = () => {
     view.querySelectorAll('[data-vista]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.vista === estado.vista)));
-    if (estado.vista === 'exercicios') vistaExercicios(conteudo, h);
+    if (estado.vista === 'corpo') vistaCorpo(conteudo, medidas);
+    else if (!h.series.length) {
+      redesenharGrafico = null;
+      conteudo.innerHTML = '<div class="vazio vazio-corpo">Conclua um treino e a sua evolução aparece aqui.</div>';
+    } else if (estado.vista === 'exercicios') vistaExercicios(conteudo, h);
     else vistaGrupos(conteudo, h);
   };
   view.querySelectorAll('[data-vista]').forEach((b) => {

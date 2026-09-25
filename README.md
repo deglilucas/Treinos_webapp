@@ -67,9 +67,11 @@ redesenhada ao voltar do segundo plano (`visibilitychange`/`pageshow`). Como
 tudo fica no IndexedDB, o cronômetro sobrevive até ao app ser fechado.
 
 Nenhuma fase termina sozinha. Série de tempo e descanso contam o tempo que
-passou e apitam quando cruzam o alvo, que é só referência. Parar a série
-registra a duração real e começa o descanso; o descanso segue até você
-encerrar ou registrar a próxima série.
+passou e apitam quando cruzam o alvo, que é só referência. Toda série
+terminada abre um descanso, inclusive entre exercícios; só a última do treino
+não abre, e o app pergunta se quer concluir. O descanso vai até o toque em
+"Iniciar série" (ou até registrar a próxima) e a duração real fica em
+`descanso_seg` da série que o abriu.
 
 ## GIFs dos exercícios
 

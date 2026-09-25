@@ -104,14 +104,30 @@ export async function iniciarSessao(treinoId) {
 }
 
 async function alterarSessao(id, fn) {
-  return tx('sessoes', 'readwrite', async (t) => {
+  return tx(['sessoes', 'series_registradas'], 'readwrite', async (t) => {
     const store = t.objectStore('sessoes');
     const sessao = await req(store.get(id));
     if (!sessao) throw new Error('Sessão não encontrada');
-    fn(sessao, Date.now());
+    await fn(sessao, Date.now(), t);
     store.put(sessao);
     return sessao;
   });
+}
+
+/**
+ * Fecha o descanso em andamento e grava quanto ele durou de verdade na série
+ * que o abriu (`descanso_seg`). O descanso vale até o toque que começa a
+ * próxima série, passe ou não do alvo.
+ */
+async function fecharDescanso(t, sessao, agora) {
+  if (!sessao.descanso_inicio) return;
+  if (sessao.descanso_serie_id) {
+    const series = t.objectStore('series_registradas');
+    const serie = await req(series.get(sessao.descanso_serie_id));
+    if (serie) series.put({ ...serie, descanso_seg: Math.round(Math.max(0, agora - sessao.descanso_inicio) / 1000) });
+  }
+  sessao.descanso_inicio = null;
+  sessao.descanso_serie_id = null;
 }
 
 function encerrarPausa(sessao, agora) {
@@ -122,22 +138,20 @@ function encerrarPausa(sessao, agora) {
 }
 
 /** "Pausar e sair": congela o cronômetro do treino até retomar. */
-export const pausarSessao = (id) => alterarSessao(id, (s, agora) => {
+export const pausarSessao = (id) => alterarSessao(id, async (s, agora, t) => {
+  await fecharDescanso(t, s, agora);
   if (!s.pausado_em) s.pausado_em = agora;
-  s.descanso_inicio = null;
   s.serie_em_curso = null;
 });
 
 export const retomarSessao = (id) => alterarSessao(id, encerrarPausa);
 
-export const iniciarDescanso = (id, segundos) => alterarSessao(id, (s, agora) => {
-  s.descanso_inicio = agora;
-  s.descanso_duracao_ms = segundos * 1000;
-});
-
-/** Encerra o descanso — só se ainda for o mesmo que a tela viu terminar. */
-export const encerrarDescanso = (id, inicioEsperado) => alterarSessao(id, (s) => {
-  if (inicioEsperado == null || s.descanso_inicio === inicioEsperado) s.descanso_inicio = null;
+/**
+ * Toque em "Iniciar série": termina o descanso (só se ainda for o mesmo que a
+ * tela estava mostrando) e grava a duração real dele.
+ */
+export const encerrarDescanso = (id, inicioEsperado) => alterarSessao(id, async (s, agora, t) => {
+  if (inicioEsperado == null || s.descanso_inicio === inicioEsperado) await fecharDescanso(t, s, agora);
 });
 
 /** Muda o alvo do descanso (só a referência do bipe; o descanso continua até você encerrar). */
@@ -146,20 +160,20 @@ export const ajustarDescanso = (id, deltaSeg) => alterarSessao(id, (s) => {
   s.descanso_duracao_ms = Math.max(0, s.descanso_duracao_ms + deltaSeg * 1000);
 });
 
-/** Começa uma série do tipo tempo. Guarda o instante de início na sessão. */
+/** Começa uma série do tipo tempo: fecha o descanso e guarda o instante de início. */
 export const iniciarSerieTempo = (id, { exercicio_id, numero_serie, alvo_ms }) =>
-  alterarSessao(id, (s, agora) => {
+  alterarSessao(id, async (s, agora, t) => {
+    await fecharDescanso(t, s, agora);
     s.serie_em_curso = { exercicio_id, numero_serie, alvo_ms, inicio: agora };
-    s.descanso_inicio = null;
   });
 
 export const descartarSerieTempo = (id) => alterarSessao(id, (s) => { s.serie_em_curso = null; });
 
-export const concluirSessao = (id) => alterarSessao(id, (s, agora) => {
+export const concluirSessao = (id) => alterarSessao(id, async (s, agora, t) => {
+  await fecharDescanso(t, s, agora);
   encerrarPausa(s, agora);
   s.hora_fim = agora;
   s.status = 'concluida';
-  s.descanso_inicio = null;
   s.serie_em_curso = null;
 });
 
@@ -227,7 +241,7 @@ export async function ultimaReferencia(exercicioId, sessaoAtualId) {
 /**
  * Registra a série e, na mesma transação, começa o descanso a partir do
  * instante em que ela terminou (`registradaEm`). `descansoSeg` é o alvo do
- * descanso (quando apitar); 0 não inicia descanso.
+ * descanso (quando apitar); 0 não inicia descanso (última série do treino).
  */
 export function registrarSerie({
   sessaoId, exercicioId, numero, peso = null, reps = null, duracao = null,
@@ -237,6 +251,9 @@ export function registrarSerie({
     const sessoes = t.objectStore('sessoes');
     const sessao = await req(sessoes.get(sessaoId));
     if (sessao?.status !== 'em_andamento') throw new Error('Sessão não está em andamento');
+
+    // Se o descanso anterior não foi encerrado por toque, ele vai até aqui.
+    await fecharDescanso(t, sessao, registradaEm);
 
     const serie = {
       id: novoId(),
@@ -249,8 +266,11 @@ export function registrarSerie({
     t.objectStore('series_registradas').put(serie);
 
     sessao.serie_em_curso = null;
-    sessao.descanso_inicio = descansoSeg > 0 ? registradaEm : null;
-    sessao.descanso_duracao_ms = descansoSeg * 1000;
+    if (descansoSeg > 0) {
+      sessao.descanso_inicio = registradaEm;
+      sessao.descanso_duracao_ms = descansoSeg * 1000;
+      sessao.descanso_serie_id = serie.id;
+    }
     sessoes.put(sessao);
     return { sessao, serie };
   });

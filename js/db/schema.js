@@ -50,6 +50,7 @@ export const DB_VERSAO = 1;
  * @property {number} tempo_pausado_ms  soma das pausas já encerradas
  * @property {number|null} descanso_inicio      epoch ms; o descanso só termina por toque
  * @property {number} descanso_duracao_ms       alvo do descanso (quando apitar)
+ * @property {string|null} descanso_serie_id    série que abriu o descanso (recebe o descanso_seg)
  * @property {{exercicio_id: string, numero_serie: number, alvo_ms: number, inicio: number} | null} serie_em_curso
  *           série de tempo rodando; só termina por toque, o alvo é quando apitar
  *
@@ -62,6 +63,7 @@ export const DB_VERSAO = 1;
  * @property {number|null} reps
  * @property {number|null} duracao      segundos
  * @property {number} registrada_em     epoch ms
+ * @property {number} [descanso_seg]    descanso real depois desta série, até o toque que começou a próxima
  *
  * @typedef MedidaCorporal
  * @property {string} id
