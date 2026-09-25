@@ -34,7 +34,8 @@ js/app.js             boot: abre banco, seed, rotas, service worker
 js/router.js          rotas por hash (#/inicio, #/treinar/...)
 js/db/schema.js       esquema e migrações do IndexedDB
 js/db/db.js           helpers de transação
-js/db/seed.js         biblioteca de exercícios + treinos A/B/C iniciais
+js/db/biblioteca.js   biblioteca de exercícios (~225, pt-BR, com apelidos)
+js/db/seed.js         grava a biblioteca e os treinos A/B/C iniciais
 js/db/repo.js         consultas e ciclo de vida da sessão
 js/lib/timer.js       timers por timestamp
 js/lib/datas.js       datas locais em 'YYYY-MM-DD' e rótulos pt-BR
