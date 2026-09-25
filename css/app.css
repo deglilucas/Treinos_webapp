@@ -757,3 +757,126 @@ select.entrada {
 .item-exercicio.apagado .item-titulo { color: var(--text-3); }
 .item-nota { font-size: 12px; font-weight: 600; color: var(--accent); flex: none; }
 .item-exercicio.apagado .item-nota { color: var(--text-3); }
+
+/* ---------- Progresso ---------- */
+.vista-progresso { margin-top: 20px; }
+#conteudo-progresso > .chips:first-child { margin-top: 18px; }
+.seletor-exercicio { margin-top: 16px; }
+.segmentado-3 { grid-template-columns: repeat(3, 1fr); }
+#conteudo-progresso .segmentado { margin-top: 12px; }
+#conteudo-progresso .segmentado button { font-size: 14px; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+.stat {
+  min-width: 0;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 12px 12px 14px;
+}
+.stat-rotulo { color: var(--text-2); font-size: 12px; font-weight: 500; }
+.stat-valor {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.stat-apoio { color: var(--text-3); font-size: 12px; margin-top: 2px; }
+
+.grafico {
+  position: relative;
+  margin-top: 12px;
+  padding: 8px 0 4px;
+  overflow: hidden;
+  outline: none;
+}
+.grafico:focus-visible { box-shadow: 0 0 0 2px var(--accent-line); }
+.grafico-svg { display: block; width: 100%; height: auto; }
+.grafico-grade { stroke: var(--border); stroke-width: 1; }
+.grafico-eixo { fill: var(--text-3); font: 500 11px var(--font-body); font-variant-numeric: tabular-nums; }
+.grafico-rotulo { fill: var(--text-2); font: 600 12px var(--font-body); }
+.grafico-area { fill: var(--accent); fill-opacity: 0.1; stroke: none; }
+.grafico-linha { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.grafico-ponto { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.grafico-guia { stroke: var(--text-3); stroke-width: 1; }
+.grafico-alvo { fill: transparent; cursor: crosshair; touch-action: pan-y; }
+.grafico-dica {
+  position: absolute;
+  top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 220px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  pointer-events: none;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.grafico-dica strong { color: var(--text); font-size: 15px; font-weight: 700; }
+
+.item-compacto { padding: 12px 16px; }
+.item-valor { font-family: var(--font-display); font-weight: 700; font-size: 15px; white-space: nowrap; }
+
+.navegador-semana {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 8px;
+  background: var(--surface);
+  border-radius: 14px;
+}
+.navegador-texto { flex: 1; text-align: center; }
+.navegador-semana .botao-icone { color: var(--text); }
+
+.barras { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; }
+.barra-linha {
+  display: grid;
+  grid-template-columns: 92px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 4px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.barra-linha:active, .barra-linha[aria-expanded="true"] { background: var(--surface-2); }
+.barra-rotulo { font-size: 14px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-trilho { display: block; height: 16px; }
+.barra {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  background: var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.barra-valor { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.barra-detalhe { grid-column: 1 / -1; font-size: 12px; color: var(--text-3); line-height: 1.5; }
+.nota-grafico { margin-top: 12px; }
+
+/* ---------- Detalhe do treino feito ---------- */
+.detalhe-quando { margin: -12px 0 0; font-size: 14px; }
+.linha-duracao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 14px;
+  padding: 12px 16px;
+}
+.series-cab-tempo, .serie.serie-edicao-tempo { grid-template-columns: 36px 1fr 48px; }
+.card-exercicio .ex-nome + .series-cab { margin-top: 12px; }
+.serie .botao-icone-perigo { justify-self: end; }
+#excluir-sessao { margin-top: 16px; }
