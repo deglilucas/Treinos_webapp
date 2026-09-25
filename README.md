@@ -13,12 +13,13 @@ npx http-server -c-1 .
 
 ## Publicando no GitHub Pages
 
-Settings → Pages → *Deploy from a branch* → `main` / `/ (root)`.
-Todos os caminhos são relativos, então funciona em `usuario.github.io/Treinos_webapp/`.
+O workflow `.github/workflows/pages.yml` publica a cada push na `main`
+(Settings → Pages → Source: *GitHub Actions*). Todos os caminhos são relativos,
+então funciona em `usuario.github.io/Treinos_webapp/`.
 
-**A cada deploy que altere arquivos do app, suba `VERSAO` em `sw.js`** (e inclua
-arquivos novos em `APP_SHELL`). O app mostra "Nova versão disponível" quando o
-service worker novo assume.
+No deploy, o `VERSAO` do `sw.js` vira o hash do commit, então o cache offline
+se renova sozinho. Arquivo novo do app precisa entrar em `APP_SHELL`. O app
+mostra "Nova versão disponível" quando o service worker novo assume.
 
 ## Estrutura
 
