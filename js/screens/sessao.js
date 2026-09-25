@@ -130,13 +130,15 @@ export async function render(view, sessaoId) {
   // ---------- HTML ----------
 
   function htmlLinhaPesoReps(item, { numero, serie }) {
-    const valores = serie ? { peso: fmtPeso(serie.peso), reps: serie.reps } : sugestao(item, numero);
+    const valores = serie ? { peso: fmtPeso(serie.peso), reps: serie.reps ?? '' } : sugestao(item, numero);
+    // Registrada pela notificação sem carga/reps: fica destacada para completar.
+    const aPreencher = serie?.a_preencher;
     return `
-      <div class="serie${serie ? ' feita' : ''}" data-num="${numero}"${serie ? ` data-serie="${serie.id}"` : ''}>
+      <div class="serie${serie ? ' feita' : ''}${aPreencher ? ' a-preencher' : ''}" data-num="${numero}"${serie ? ` data-serie="${serie.id}"` : ''}>
         <span class="serie-num">${numero}</span>
-        <input class="campo" name="peso" inputmode="decimal" autocomplete="off" placeholder="—"
+        <input class="campo" name="peso" inputmode="decimal" autocomplete="off" placeholder="${aPreencher ? 'kg' : '—'}"
           value="${esc(valores.peso)}" aria-label="Peso da série ${numero} em kg">
-        <input class="campo" name="reps" inputmode="numeric" autocomplete="off" placeholder="—"
+        <input class="campo" name="reps" inputmode="numeric" autocomplete="off" placeholder="${aPreencher ? 'reps' : '—'}"
           value="${esc(valores.reps)}" aria-label="Repetições da série ${numero}">
         <button type="button" class="serie-check" data-acao="${serie ? 'desfazer' : 'registrar'}"
           aria-label="${serie ? `Desfazer série ${numero}` : `Registrar série ${numero}`}">${icone('check')}</button>
@@ -387,8 +389,10 @@ export async function render(view, sessaoId) {
     const atualizada = await atualizarSerie(linha.dataset.serie, {
       peso: lerPeso(linha.querySelector('[name=peso]').value),
       reps,
+      a_preencher: false,
     });
     if (atualizada) series = series.map((s) => (s.id === atualizada.id ? atualizada : s));
+    linha.classList.remove('a-preencher');
   });
 
   // ---------- Descanso ----------
@@ -504,6 +508,22 @@ export async function render(view, sessaoId) {
   };
 
   async function finalizar() {
+    // Séries concluídas pela notificação sem carga/reps: oferece completar antes.
+    const faltando = series.filter((s) => s.a_preencher).length;
+    if (faltando) {
+      const ok = await abrirSheet({
+        titulo: faltando === 1 ? 'Falta carga e reps em 1 série' : `Faltam carga e reps em ${faltando} séries`,
+        texto: 'Elas foram concluídas pela notificação. Preencha agora para o Progresso ficar certo, ou conclua assim mesmo e corrija depois no histórico.',
+        acoes: [{ id: 'sim', rotulo: 'Concluir assim mesmo' }],
+        rotuloFechar: 'Preencher agora',
+      });
+      if (!ok) {
+        const linha = view.querySelector('.serie.a-preencher');
+        linha?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        linha?.querySelector('[name=reps]')?.focus();
+        return;
+      }
+    }
     const final = await concluirSessao(sessao.id);
     ir('inicio');
     toast(`Treino concluído · ${formatarDuracao(duracaoSessao(final))}`);

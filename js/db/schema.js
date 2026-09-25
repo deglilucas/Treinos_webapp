@@ -65,6 +65,7 @@ export const DB_VERSAO = 1;
  * @property {number|null} reps
  * @property {number|null} duracao      segundos
  * @property {number} registrada_em     epoch ms
+ * @property {boolean} [a_preencher]   concluída pela notificação sem carga/reps; o app pede para completar
  * @property {number} [descanso_seg]    descanso real depois desta série, até o toque que começou a próxima
  *
  * @typedef MedidaCorporal

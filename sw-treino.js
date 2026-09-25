@@ -174,8 +174,11 @@ async function descreverFase(db, estado) {
   return {
     fase: 'serie',
     titulo: `${proxima.item.exercicio.nome} · série ${proxima.numero}`,
-    corpo: sug.reps ? `${carga(sug)} · toque em Concluir quando terminar` : 'Abra o app para registrar a carga e as reps',
-    acoes: sug.reps ? [{ action: 'concluir', title: 'Concluir série' }] : [],
+    // Sem carga e reps conhecidas, o botão continua: a série fica "a preencher" no app.
+    corpo: sug.reps
+      ? `${carga(sug)} · toque em Concluir quando terminar`
+      : 'Toque em Concluir quando terminar. Carga e reps você preenche depois no app.',
+    acoes: [{ action: 'concluir', title: 'Concluir série' }],
     alvoEm: null, chave: `serie:${proxima.item.id}:${proxima.numero}`,
   };
 }
@@ -264,7 +267,11 @@ async function executarAcao(acao) {
         registrar = { exercicio_id: c.exercicio_id, numero: c.numero_serie, peso: null, reps: null, duracao: Math.max(1, Math.round((agora - c.inicio) / 1000)) };
       } else if (fila[0] && fila[0].item.exercicio.tipo_registro !== 'tempo') {
         const sug = await sugestao(db, estado, fila[0].item, fila[0].numero);
-        if (sug.reps) registrar = { exercicio_id: fila[0].item.exercicio_id, numero: fila[0].numero, peso: sug.peso, reps: sug.reps, duracao: null };
+        registrar = {
+          exercicio_id: fila[0].item.exercicio_id, numero: fila[0].numero,
+          peso: sug.peso, reps: sug.reps, duracao: null,
+          aPreencher: !sug.reps, // registrada sem reps: o app pede para completar
+        };
       }
       if (!registrar) return;
     }
@@ -291,6 +298,7 @@ async function executarAcao(acao) {
           id: novoIdSW(), sessao_id: sessao.id, exercicio_id: registrar.exercicio_id,
           numero_serie: registrar.numero, peso: registrar.peso, reps: registrar.reps,
           duracao: registrar.duracao, registrada_em: agora,
+          ...(registrar.aPreencher ? { a_preencher: true } : {}),
         };
         t.objectStore('series_registradas').put(serie);
         sessao.serie_em_curso = null;

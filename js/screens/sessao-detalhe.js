@@ -93,7 +93,7 @@ export async function render(view, sessaoId, voltarPara) {
       : `<input class="campo" name="peso" inputmode="decimal" autocomplete="off" placeholder="—" value="${esc(fmtPeso(serie.peso))}" aria-label="Peso da série ${serie.numero_serie} em kg">
          <input class="campo" name="reps" inputmode="numeric" autocomplete="off" value="${esc(serie.reps ?? '')}" aria-label="Repetições da série ${serie.numero_serie}">`;
     return `
-      <div class="serie feita${tempo ? ' serie-edicao-tempo' : ''}" data-serie="${esc(serie.id)}">
+      <div class="serie feita${tempo ? ' serie-edicao-tempo' : ''}${serie.a_preencher ? ' a-preencher' : ''}" data-serie="${esc(serie.id)}">
         <span class="serie-num">${serie.numero_serie}</span>
         ${campos}
         <button type="button" class="botao-icone botao-icone-perigo" data-remover aria-label="Apagar série ${serie.numero_serie}">${icone('lixeira')}</button>
@@ -127,7 +127,7 @@ export async function render(view, sessaoId, voltarPara) {
     const campo = e.target;
     let mudanca;
     if (campo.name === 'peso') mudanca = { peso: lerPeso(campo.value) };
-    else if (campo.name === 'reps') mudanca = { reps: lerReps(campo.value) };
+    else if (campo.name === 'reps') mudanca = { reps: lerReps(campo.value), a_preencher: false };
     else mudanca = { duracao: lerDuracao(campo.value) };
     if (Object.values(mudanca)[0] === undefined) {
       campo.value = campo.name === 'duracao' ? formatarCronometro(serie.duracao * 1000)
@@ -137,6 +137,7 @@ export async function render(view, sessaoId, voltarPara) {
     }
     const salva = await atualizarSerie(serie.id, mudanca);
     series = series.map((s) => (s.id === salva.id ? salva : s));
+    if (!salva.a_preencher) linha.classList.remove('a-preencher');
     if (campo.name === 'duracao') campo.value = formatarCronometro(salva.duracao * 1000);
     desenharStats();
   });
