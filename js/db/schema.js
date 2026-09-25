@@ -20,9 +20,9 @@ export const DB_VERSAO = 1;
  * @property {boolean} ativo
  * @property {number} [duracao_alvo]    segundos, só para tipo 'tempo'
  * @property {boolean} [personalizado]  criado pelo usuário
- * @property {string} [nome_en]         termo de busca na API de GIFs
- * @property {string} [gif_url]         URL resolvida (''= buscou e não achou)
- * @property {number} [gif_busca_em]    quando a última busca foi feita
+ * @property {string} [nome_en]         nome em inglês (referência)
+ * @property {string} [imagem_id]       imagem escolhida no catálogo ('' = sem imagem); sem o campo, usa a de imagens.js
+ * @property {string} [catalogo_id]     id no free-exercise-db, se veio do catálogo online
  *
  * @typedef Treino
  * @property {string} id

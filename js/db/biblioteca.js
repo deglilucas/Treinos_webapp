@@ -4,7 +4,7 @@
 // seed.js. Na próxima abertura o app grava só os ids que ainda não existem;
 // nada que você editou, ocultou ou criou é tocado.
 //
-// nome_en é o termo de busca do GIF no ExerciseDB.
+// nome_en é o nome em inglês (referência; as imagens ficam em imagens.js).
 
 // [id, nome, apelidos, grupo, equipamento, nome_en, tipo?, duracao_alvo?]
 export const BIBLIOTECA = [

@@ -26,7 +26,7 @@ mostra "Nova versão disponível" quando o service worker novo assume.
 ```
 index.html            shell do app (tabbar + área das telas)
 manifest.json         instalação como app
-sw.js                 cache offline: app shell, fontes e GIFs
+sw.js                 cache offline: app shell, fontes e imagens
 sw-treino.js          notificação do treino com botões (importado pelo sw.js)
 css/tokens.css        cores, fontes, raios, espaçamentos
 css/app.css           componentes e telas
@@ -40,7 +40,9 @@ js/db/seed.js         grava a biblioteca e os treinos A/B/C iniciais
 js/db/repo.js         consultas e ciclo de vida da sessão
 js/lib/timer.js       timers por timestamp
 js/lib/datas.js       datas locais em 'YYYY-MM-DD' e rótulos pt-BR
-js/lib/midia.js       GIFs do ExerciseDB com fallback
+js/lib/midia.js       imagens de execução com fallback
+js/db/imagens.js      imagem de cada exercício da biblioteca
+data/catalogo.json    catálogo online (free-exercise-db, 876 exercícios)
 js/ui/                ícones SVG e utilidades de DOM
 js/screens/           uma tela por arquivo
 ```
@@ -49,7 +51,7 @@ js/screens/           uma tela por arquivo
 
 | store | campos | índices |
 |---|---|---|
-| `exercicios` | id, nome, apelidos[], grupo_muscular, equipamento, tipo_registro (`peso_reps`\|`tempo`), ativo, duracao_alvo?, personalizado?, nome_en?, gif_url? | grupo_muscular, equipamento |
+| `exercicios` | id, nome, apelidos[], grupo_muscular, equipamento, tipo_registro (`peso_reps`\|`tempo`), ativo, duracao_alvo?, personalizado?, nome_en?, imagem_id?, catalogo_id? | grupo_muscular, equipamento |
 | `treinos` | id, nome, sigla, ordem | ordem |
 | `treino_exercicios` | id, treino_id, exercicio_id, ordem, series, descanso_padrao, duracao_alvo? | treino_id, exercicio_id |
 | `sessoes` | id, treino_id, data, hora_inicio, hora_fim, status (`em_andamento`\|`concluida`), pausado_em, tempo_pausado_ms, descanso_inicio, descanso_duracao_ms | data, status, treino_id |
@@ -85,11 +87,19 @@ redesenhar quando você volta. O bipe do alvo vem pela notificação, com
 vibração, enquanto o navegador deixa o SW acordado (uns 5 minutos). Feito
 para Android/Chrome; no iPhone a notificação não tem botões.
 
-## GIFs dos exercícios
+## Imagens e catálogo online
 
-Cada exercício da biblioteca tem um termo em inglês (`nome_en`) usado na busca
-da API aberta do ExerciseDB (`js/lib/midia.js`). A URL encontrada é salva no
-banco e a imagem é guardada pelo service worker no cache `treinos-midia`. Sem
-cache e sem internet aparece o ícone com o nome do exercício.
+As imagens vêm do [free-exercise-db](https://github.com/yuhonas/free-exercise-db)
+(domínio público): duas fotos por exercício, início e fim do movimento, que
+alternam na visão grande. `js/db/imagens.js` liga cada exercício da biblioteca
+à sua imagem; qualquer exercício pode trocar a imagem pelo catálogo
+(`imagem_id`). As fotos vêm de `raw.githubusercontent.com` e o service worker
+guarda cada uma no cache `treinos-midia` na primeira vez, então depois abrem
+offline. Sem imagem, aparece o ícone com o nome.
+
+O catálogo online (`data/catalogo.json`, gerado a partir do free-exercise-db)
+tem os 876 exercícios da base com grupo e equipamento já convertidos. A busca
+entende termos em português (`js/lib/traducao.js`) e dá pra importar com outro
+nome, direto para um treino.
 
 Ícone de engrenagem baseado no [Lucide](https://lucide.dev) (ISC).

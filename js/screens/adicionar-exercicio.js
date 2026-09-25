@@ -19,7 +19,10 @@ export async function render(view, treinoId) {
 
   view.innerHTML = `
     ${cabecalhoVoltar(`Adicionar ao Treino ${treino.sigla}`, `ajustes/treino/${treinoId}`)}
-    <a class="botao" href="#/ajustes/exercicio/novo?treino=${esc(treinoId)}">${icone('mais')}Criar exercício personalizado</a>
+    <div class="botoes-lado">
+      <a class="botao" href="#/ajustes/catalogo?treino=${esc(treinoId)}">${icone('busca')}Catálogo online</a>
+      <a class="botao" href="#/ajustes/exercicio/novo?treino=${esc(treinoId)}">${icone('mais')}Criar</a>
+    </div>
     <div id="busca" class="bloco-busca"></div>`;
 
   const busca = montarBusca($('#busca', view), {

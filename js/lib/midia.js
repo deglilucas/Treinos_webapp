@@ -1,68 +1,62 @@
-// GIFs de execução via ExerciseDB (API aberta v1).
+// Imagens de execução, do free-exercise-db (domínio público).
 //
-// Fluxo: o exercício guarda `nome_en` (termo de busca). Na primeira vez que ele
-// é exibido com internet, buscamos na API e salvamos a URL em `gif_url`. A
-// imagem em si é cacheada pelo service worker (cache 'treinos-midia'), então da
-// segunda vez em diante ela abre offline. Sem cache e sem internet, aparece o
-// fallback com ícone + nome.
+// Cada exercício tem duas fotos (início e fim do movimento); na visão grande
+// elas alternam, como um GIF. As fotos vêm do GitHub e o service worker guarda
+// cada uma no cache 'treinos-midia' na primeira vez que aparece, então depois
+// abrem offline. Sem imagem (ou sem cache e sem internet), aparece o ícone
+// com o nome do exercício.
 
-import { get, put } from '../db/db.js';
+import { IMAGEM_BIBLIOTECA } from '../db/imagens.js';
 import { esc } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 
-export const API_EXERCISEDB = 'https://exercisedb-api.vercel.app/api/v1';
+const BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
 
-// Se a busca não encontrou nada, espera uma semana antes de tentar de novo.
-const ESPERA_NOVA_BUSCA_MS = 7 * 24 * 3600 * 1000;
+/** Id da imagem no catálogo: a escolhida no exercício, senão a da biblioteca. '' = sem imagem. */
+export const imagemIdDe = (exercicio) => exercicio.imagem_id ?? IMAGEM_BIBLIOTECA[exercicio.id] ?? '';
 
-function extrairGif(json) {
-  const lista = Array.isArray(json) ? json : (json?.data ?? []);
-  const item = Array.isArray(lista) ? lista[0] : lista;
-  return item?.gifUrl ?? item?.gif_url ?? null;
-}
-
-async function buscarNaApi(termo) {
-  const url = `${API_EXERCISEDB}/exercises/search?q=${encodeURIComponent(termo)}&limit=1`;
-  const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-  if (!resp.ok) throw new Error(`ExerciseDB ${resp.status}`);
-  return extrairGif(await resp.json());
-}
-
-/** Resolve a URL do GIF (do banco ou da API). Retorna null se não houver. */
-export async function resolverGif(exercicioId) {
-  const ex = await get('exercicios', exercicioId);
-  if (!ex) return null;
-  if (ex.gif_url) return ex.gif_url;
-
-  const termo = ex.nome_en;
-  const buscouRecente = ex.gif_url === '' && Date.now() - (ex.gif_busca_em ?? 0) < ESPERA_NOVA_BUSCA_MS;
-  if (!termo || buscouRecente || !navigator.onLine) return null;
-
-  try {
-    const gif = await buscarNaApi(termo);
-    await put('exercicios', { ...ex, gif_url: gif ?? '', gif_busca_em: Date.now() });
-    return gif;
-  } catch {
-    return null; // rede instável: tenta de novo na próxima exibição
-  }
-}
+export const urlsDaImagem = (imagemId) => (imagemId ? [`${BASE}${imagemId}/0.jpg`, `${BASE}${imagemId}/1.jpg`] : []);
 
 function fallback(nome) {
   return `<div class="midia-fallback">${icone('treinar')}<span>${esc(nome)}</span></div>`;
 }
 
-/**
- * Preenche `el` (um .midia) com o GIF do exercício ou com o fallback.
- * Se a imagem não carregar (offline e fora do cache), troca pelo fallback.
- */
-export async function montarMidia(el, exercicio) {
-  el.innerHTML = fallback(exercicio.nome);
-  const url = await resolverGif(exercicio.id);
-  if (!url || !el.isConnected) return;
+function carregar(url, alt) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.alt = alt;
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
-  const img = new Image();
-  img.alt = `Execução: ${exercicio.nome}`;
-  img.decoding = 'async';
-  img.onload = () => { if (el.isConnected) el.replaceChildren(img); };
-  img.src = url;
+/**
+ * Preenche `el` (um .midia) com a imagem do exercício ou com o fallback.
+ * `animar`: alterna as duas fotos (visão grande); sem ele, só a primeira (miniatura).
+ */
+export async function montarMidia(el, exercicio, { animar = false, imagemId = imagemIdDe(exercicio) } = {}) {
+  el.innerHTML = fallback(exercicio.nome);
+  const urls = urlsDaImagem(imagemId);
+  if (!urls.length) return;
+
+  try {
+    const alt = `Execução: ${exercicio.nome}`;
+    const primeira = await carregar(urls[0], alt);
+    if (!el.isConnected) return;
+    if (!animar) {
+      el.replaceChildren(primeira);
+      return;
+    }
+    // A segunda foto é opcional: se falhar, fica a primeira parada.
+    const segunda = await carregar(urls[1], alt).catch(() => null);
+    if (!el.isConnected) return;
+    const quadro = document.createElement('div');
+    quadro.className = segunda ? 'midia-animada' : 'midia-parada';
+    quadro.append(primeira, ...(segunda ? [segunda] : []));
+    el.replaceChildren(quadro);
+  } catch {
+    // sem internet e fora do cache: fica o fallback
+  }
 }

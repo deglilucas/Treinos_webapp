@@ -12,7 +12,10 @@ export async function render(view) {
 
   view.innerHTML = `
     ${cabecalhoVoltar('Exercícios', 'ajustes')}
-    <a class="botao" href="#/ajustes/exercicio/novo">${icone('mais')}Criar exercício personalizado</a>
+    <div class="botoes-lado">
+      <a class="botao" href="#/ajustes/catalogo">${icone('busca')}Catálogo online</a>
+      <a class="botao" href="#/ajustes/exercicio/novo">${icone('mais')}Criar</a>
+    </div>
     <div id="busca" class="bloco-busca"></div>`;
 
   montarBusca($('#busca', view), {

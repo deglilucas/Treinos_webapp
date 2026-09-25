@@ -915,3 +915,31 @@ select.entrada {
 .interruptor[aria-checked="true"] { background: var(--accent); }
 .interruptor[aria-checked="true"] span { transform: translateX(20px); background: var(--on-accent); }
 .interruptor:disabled { opacity: 0.4; cursor: default; }
+
+/* ---------- Imagens de execução ---------- */
+.midia-grande { aspect-ratio: 3 / 2; max-height: none; }
+.midia-animada, .midia-parada { position: relative; width: 100%; height: 100%; }
+.midia-animada img, .midia-parada img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* As duas fotos (início e fim do movimento) se alternam, como um GIF. */
+.midia-animada img:last-child { animation: alternar-quadro 1.6s steps(1) infinite; }
+@keyframes alternar-quadro { 0% { opacity: 0; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .midia-animada img:last-child { animation: none; opacity: 0; }
+}
+
+/* ---------- Catálogo ---------- */
+.item-miniatura {
+  width: 52px; height: 52px;
+  flex: none;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.item-miniatura img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sheet-catalogo { max-height: 92dvh; overflow-y: auto; }
+.sheet-catalogo .midia-grande { margin: 0 0 16px; }
+.campo-nome-catalogo { margin-top: 16px; }
+.imagem-exercicio { display: flex; align-items: center; gap: 14px; }
+.imagem-exercicio .midia-mini { width: 72px; }
+.imagem-acoes { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.botao-compacto { min-height: 40px; width: auto; padding: 0 14px; font-size: 14px; }
