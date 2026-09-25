@@ -7,6 +7,7 @@ import {
 } from '../db/repo.js';
 import { rotuloDia } from '../lib/datas.js';
 import { esc, $ } from '../ui/dom.js';
+import { icone } from '../ui/icones.js';
 import { ir } from '../router.js';
 import * as sessao from './sessao.js';
 
@@ -30,8 +31,15 @@ export async function render(view, { params, query }) {
 
   view.classList.add('com-acao');
   view.innerHTML = `
-    <h1 class="titulo">Treinar</h1>
-    <p class="subtitulo">Escolha o treino de hoje</p>
+    <header class="cabecalho">
+      <div>
+        <h1 class="titulo">Treinar</h1>
+        <p class="subtitulo">Escolha o treino de hoje</p>
+      </div>
+      <div class="cabecalho-acoes">
+        <button type="button" class="botao-icone" id="editar-treino" aria-label="Editar treino selecionado">${icone('editar')}</button>
+      </div>
+    </header>
     <div class="lista escolha-treino">
       ${detalhes.length ? detalhes.map(({ treino, itens, ultima }) => `
         <button type="button" class="item-historico opcao-treino" data-treino="${treino.id}">
@@ -61,6 +69,8 @@ export async function render(view, { params, query }) {
   view.querySelectorAll('.opcao-treino').forEach((el) => {
     el.onclick = () => { selecionado = el.dataset.treino; atualizar(); };
   });
+
+  $('#editar-treino', view).onclick = () => ir(selecionado ? `ajustes/treino/${selecionado}` : 'ajustes');
 
   botao.onclick = async () => {
     if (!selecionado) return ir('ajustes');
