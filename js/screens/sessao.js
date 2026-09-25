@@ -323,7 +323,7 @@ export async function render(view, sessaoId) {
         const abrir = grande.hidden;
         grande.hidden = !abrir;
         botao.setAttribute('aria-expanded', String(abrir));
-        if (abrir && !grande.childElementCount) montarMidia(grande, item.exercicio);
+        if (abrir && !grande.childElementCount) montarMidia(grande, item.exercicio, { animar: true });
         break;
       }
       case 'registrar':

@@ -1,7 +1,7 @@
-// Service worker: app shell offline + cache de fontes + cache de GIFs.
+// Service worker: app shell offline + cache de fontes + cache das imagens de exercício.
 //
-// A cada deploy que mude arquivos do app, suba VERSAO. O cache de mídia não
-// depende da versão, então os GIFs já vistos continuam disponíveis offline.
+// No deploy, VERSAO vira o hash do commit (workflow do Pages). O cache de mídia
+// não depende da versão, então as imagens já vistas continuam offline.
 
 importScripts('./sw-treino.js'); // notificação do treino com botões
 
@@ -22,6 +22,7 @@ const APP_SHELL = [
   './js/db/schema.js',
   './js/db/seed.js',
   './js/db/biblioteca.js',
+  './js/db/imagens.js',
   './js/db/repo.js',
   './js/db/edicao.js',
   './js/db/backup.js',
@@ -32,6 +33,7 @@ const APP_SHELL = [
   './js/lib/midia.js',
   './js/lib/alerta.js',
   './js/lib/notificacoes.js',
+  './js/lib/traducao.js',
   './js/ui/dom.js',
   './js/ui/icones.js',
   './js/ui/sheet.js',
@@ -49,6 +51,7 @@ const APP_SHELL = [
   './js/screens/adicionar-exercicio.js',
   './js/screens/biblioteca.js',
   './js/screens/exercicio-form.js',
+  './js/screens/catalogo.js',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -59,7 +62,7 @@ const APP_SHELL = [
 ];
 
 const HOSTS_FONTES = ['fonts.googleapis.com', 'fonts.gstatic.com'];
-const HOSTS_MIDIA = ['static.exercisedb.dev', 'v2.exercisedb.io', 'exercisedb-api.vercel.app'];
+const HOSTS_MIDIA = ['raw.githubusercontent.com']; // fotos do free-exercise-db
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -104,7 +107,7 @@ async function dasFontes(request) {
   return salvo ?? (await rede) ?? Response.error();
 }
 
-// GIFs: depois de baixado uma vez, fica para sempre no cache.
+// Imagens: depois de baixada uma vez, fica para sempre no cache.
 async function daMidia(request) {
   const cache = await caches.open(CACHE_MIDIA);
   const salvo = await cache.match(request);
@@ -128,8 +131,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(doApp(request));
   } else if (HOSTS_FONTES.includes(url.hostname)) {
     event.respondWith(dasFontes(request));
-  } else if (request.destination === 'image' && (HOSTS_MIDIA.includes(url.hostname) || url.pathname.endsWith('.gif'))) {
+  } else if (request.destination === 'image' && HOSTS_MIDIA.includes(url.hostname)) {
     event.respondWith(daMidia(request));
   }
-  // Chamadas à API (JSON) seguem direto pra rede; a URL do GIF já fica salva no IndexedDB.
 });

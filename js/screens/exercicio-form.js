@@ -10,6 +10,7 @@ import { esc, $, toast } from '../ui/dom.js';
 import { cabecalhoVoltar, stepper } from '../ui/controles.js';
 import { abrirSheet } from '../ui/sheet.js';
 import { ir } from '../router.js';
+import { montarMidia, imagemIdDe } from '../lib/midia.js';
 
 const opcoes = (lista, atual) => {
   const todas = lista.includes(atual) ? lista : [atual, ...lista];
@@ -63,9 +64,17 @@ export async function render(view, id, query) {
         ${stepper('alvo', formatarCronometro(alvo * 1000), 'duração alvo')}
       </div>
 
-      <label class="campo-rotulo">Busca do GIF (em inglês, opcional)
-        <input class="entrada" name="nome_en" value="${esc(ex.nome_en ?? '')}" placeholder="Ex.: dumbbell curl" autocapitalize="off">
-      </label>
+      <div class="campo-rotulo">Imagem de execução
+        ${novo
+          ? '<span class="texto-apoio fraco">Depois de salvar, dá pra escolher uma imagem no catálogo.</span>'
+          : `<div class="imagem-exercicio">
+              <div class="midia midia-mini" id="imagem-atual"></div>
+              <div class="imagem-acoes">
+                <a class="botao botao-compacto" href="#/ajustes/catalogo?imagem=${esc(ex.id)}">Escolher no catálogo</a>
+                ${imagemIdDe(ex) ? '<button type="button" class="botao-texto" id="sem-imagem">Ficar sem imagem</button>' : ''}
+              </div>
+            </div>`}
+      </div>
 
       ${novo ? '' : ex.personalizado
         ? '<button type="button" class="botao botao-perigo" id="excluir">Excluir exercício</button>'
@@ -104,7 +113,6 @@ export async function render(view, id, query) {
       form.nome.focus();
       return;
     }
-    const nomeEn = dados.get('nome_en').trim();
     const atualizado = {
       ...ex,
       nome,
@@ -113,13 +121,7 @@ export async function render(view, id, query) {
       equipamento: dados.get('equipamento'),
       tipo_registro: tipo,
       duracao_alvo: alvo,
-      nome_en: nomeEn || undefined,
     };
-    // Termo do GIF mudou: esquece a URL antiga para buscar de novo.
-    if (nomeEn !== (ex.nome_en ?? '')) {
-      delete atualizado.gif_url;
-      delete atualizado.gif_busca_em;
-    }
     const gravado = await salvarExercicio(atualizado);
 
     if (novo && query.treino) {
@@ -133,6 +135,18 @@ export async function render(view, id, query) {
   });
 
   form.nome.addEventListener('input', () => form.nome.classList.remove('erro'));
+
+  const imagemAtual = $('#imagem-atual', view);
+  if (imagemAtual) montarMidia(imagemAtual, ex);
+  const semImagem = $('#sem-imagem', view);
+  if (semImagem) {
+    semImagem.onclick = async () => {
+      Object.assign(ex, await salvarExercicio({ ...ex, imagem_id: '' }));
+      montarMidia(imagemAtual, ex);
+      semImagem.remove();
+      toast('Exercício ficou sem imagem');
+    };
+  }
 
   const ocultar = $('#ocultar', view);
   if (ocultar) {

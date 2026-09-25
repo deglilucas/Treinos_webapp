@@ -14,16 +14,23 @@ const comTodos = (lista) => [{ valor: '', rotulo: 'Todos' }, ...lista.map((v) =>
  *   exercicios: object[],
  *   decorar?: (ex) => {nota?: string, desabilitado?: boolean, apagado?: boolean},
  *   aoEscolher: (ex, botao: HTMLElement) => void,
+ *   combinar?: (ex, termo: string) => boolean,
+ *   miniatura?: (ex) => string | null,   URL de uma imagem pequena à esquerda
+ *   limite?: number,                     máximo de itens desenhados de uma vez
+ *   placeholder?: string,
  * }} opcoes
  * @returns {{ atualizar(): void }} redesenha a lista (ex.: depois de adicionar um item)
  */
-export function montarBusca(el, { exercicios, decorar = () => ({}), aoEscolher }) {
+export function montarBusca(el, {
+  exercicios, decorar = () => ({}), aoEscolher, combinar = combina, miniatura = null,
+  limite = Infinity, placeholder = 'Buscar por nome ou apelido',
+}) {
   const estado = { termo: '', grupo: '', equipamento: '' };
 
   el.innerHTML = `
     <label class="busca">
       ${icone('busca')}
-      <input type="search" class="entrada busca-entrada" placeholder="Buscar por nome ou apelido"
+      <input type="search" class="entrada busca-entrada" placeholder="${esc(placeholder)}"
         autocomplete="off" enterkeyhint="search" aria-label="Buscar exercício">
     </label>
     ${chips('grupo', comTodos(GRUPOS), '')}
@@ -38,15 +45,18 @@ export function montarBusca(el, { exercicios, decorar = () => ({}), aoEscolher }
     const achados = exercicios.filter((ex) =>
       (!estado.grupo || ex.grupo_muscular === estado.grupo)
       && (!estado.equipamento || ex.equipamento === estado.equipamento)
-      && combina(ex, estado.termo));
+      && combinar(ex, estado.termo));
 
-    contagem.textContent = achados.length === 1 ? '1 exercício' : `${achados.length} exercícios`;
-    lista.innerHTML = achados.length ? achados.map((ex) => {
+    const visiveis = achados.slice(0, limite);
+    contagem.textContent = (achados.length === 1 ? '1 exercício' : `${achados.length} exercícios`)
+      + (visiveis.length < achados.length ? ` · mostrando ${visiveis.length}, refine a busca` : '');
+    lista.innerHTML = visiveis.length ? visiveis.map((ex) => {
       const d = decorar(ex);
       const tipo = ex.tipo_registro === 'tempo' ? ' · tempo' : '';
       return `
         <button type="button" class="item-exercicio${d.apagado ? ' apagado' : ''}" data-id="${esc(ex.id)}"
           ${d.desabilitado ? 'disabled' : ''}>
+          ${miniatura ? `<span class="item-miniatura">${miniatura(ex) ? `<img src="${esc(miniatura(ex))}" alt="" loading="lazy" decoding="async">` : ''}</span>` : ''}
           <span class="item-texto">
             <span class="item-titulo">${esc(ex.nome)}</span>
             <span class="item-sub">${esc(ex.grupo_muscular)} · ${esc(ex.equipamento)}${tipo}</span>

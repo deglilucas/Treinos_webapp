@@ -16,12 +16,14 @@ import * as editorTreino from './treino-editor.js';
 import * as adicionarExercicio from './adicionar-exercicio.js';
 import * as biblioteca from './biblioteca.js';
 import * as formExercicio from './exercicio-form.js';
+import * as catalogo from './catalogo.js';
 
 export async function render(view, rota) {
   const [sub, id, acao] = rota.params;
   if (sub === 'treino' && id && acao === 'adicionar') return adicionarExercicio.render(view, id);
   if (sub === 'treino' && id) return editorTreino.render(view, id);
   if (sub === 'exercicios') return biblioteca.render(view);
+  if (sub === 'catalogo') return catalogo.render(view, rota.query);
   if (sub === 'exercicio' && id) return formExercicio.render(view, id, rota.query);
   return principal(view);
 }
