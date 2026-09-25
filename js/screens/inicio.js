@@ -8,10 +8,11 @@ import {
   MESES, INICIAIS_SEMANA, capitalizar,
 } from '../lib/datas.js';
 import { duracaoSessao, formatarDuracao } from '../lib/timer.js';
-import { esc, $ } from '../ui/dom.js';
+import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { ir } from '../router.js';
 import * as detalhe from './sessao-detalhe.js';
+import { lembreteBackup, adiarLembreteBackup, baixarBackup, resumoBackup } from '../db/backup.js';
 
 // Mês exibido sobrevive à troca de abas enquanto o app está aberto.
 let mesVisivel = null; // { ano, mes }
@@ -140,6 +141,7 @@ export async function render(view, rota) {
     <section class="calendario" id="calendario" aria-label="Calendário de treinos"></section>
     <hr class="divisor">
 
+    <div id="lembrete-backup"></div>
     <h2 class="rotulo-secao">Histórico recente</h2>
     <div class="lista">
       ${historico.length
@@ -162,4 +164,30 @@ export async function render(view, rota) {
     };
   });
   $('#acao-principal', view).onclick = acao.executar;
+
+  // Lembrete de backup: tudo fica só neste aparelho.
+  const lembrete = await lembreteBackup();
+  if (lembrete) {
+    const caixa = $('#lembrete-backup', view);
+    caixa.innerHTML = `
+      <div class="card lembrete">
+        <div class="item-texto">
+          <div class="item-titulo">Hora de um backup</div>
+          <div class="item-sub">Seus treinos ficam só neste aparelho. ${lembrete.ultimo ? `Último backup há ${lembrete.dias} dias.` : 'Você ainda não fez nenhum.'}</div>
+        </div>
+        <div class="lembrete-acoes">
+          <button type="button" class="botao botao-compacto" id="fazer-backup">${icone('baixar')}Fazer backup</button>
+          <button type="button" class="botao-texto" id="adiar-backup">Depois</button>
+        </div>
+      </div>`;
+    $('#fazer-backup', view).onclick = async () => {
+      const backup = await baixarBackup();
+      caixa.replaceChildren();
+      toast(`Backup salvo: ${resumoBackup(backup)}`);
+    };
+    $('#adiar-backup', view).onclick = async () => {
+      await adiarLembreteBackup();
+      caixa.replaceChildren();
+    };
+  }
 }

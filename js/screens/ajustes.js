@@ -1,12 +1,12 @@
 // Aba Ajustes: treinos, biblioteca de exercícios e backup.
 // Subtelas: #/ajustes/treino/:id, #/ajustes/treino/:id/adicionar,
-// #/ajustes/exercicios, #/ajustes/exercicio/:id (ou 'novo').
+// #/ajustes/exercicios, #/ajustes/exercicio/:id (ou 'novo'), #/ajustes/catalogo.
 
 import { listarTreinos, nomeCompletoTreino } from '../db/repo.js';
-import { getAll, getAllPorIndice, getConfig, setConfig } from '../db/db.js';
-import { criarTreino } from '../db/edicao.js';
-import { exportarDados, validarBackup, importarDados, resumoBackup } from '../db/backup.js';
-import { chaveData, rotuloDia } from '../lib/datas.js';
+import { getAll, getAllPorIndice, getConfig } from '../db/db.js';
+import { criarTreino, moverTreino } from '../db/edicao.js';
+import { baixarBackup, validarBackup, importarDados, resumoBackup } from '../db/backup.js';
+import { rotuloDia } from '../lib/datas.js';
 import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { abrirSheet } from '../ui/sheet.js';
@@ -25,8 +25,12 @@ export async function render(view, rota) {
   if (sub === 'exercicios') return biblioteca.render(view);
   if (sub === 'catalogo') return catalogo.render(view, rota.query);
   if (sub === 'exercicio' && id) return formExercicio.render(view, id, rota.query);
+  ordenando = false; // entrar na aba sempre começa fora do modo de ordenar
   return principal(view);
 }
+
+// Modo de ordenar a rotação dos treinos (setas no lugar do link).
+let ordenando = false;
 
 async function principal(view) {
   const [treinos, exercicios, ultimoBackup] = await Promise.all([
@@ -40,18 +44,33 @@ async function principal(view) {
   view.innerHTML = `
     <h1 class="titulo">Ajustes</h1>
 
-    <h2 class="rotulo-secao">Meus treinos</h2>
+    <div class="secao-cabecalho">
+      <h2 class="rotulo-secao">Meus treinos</h2>
+      ${treinos.length > 1 ? `<button type="button" class="botao-texto" id="ordenar-treinos">${ordenando ? 'Pronto' : 'Ordenar'}</button>` : ''}
+    </div>
+    ${ordenando ? '<p class="texto-apoio fraco">O treino sugerido para hoje segue esta ordem: depois do último feito, vem o de baixo.</p>' : ''}
     <div class="lista">
-      ${treinos.map((t, i) => `
-        <a class="item-historico item-link" href="#/ajustes/treino/${esc(t.id)}">
+      ${treinos.map((t, i) => {
+        const conteudo = `
           <div class="selo">${esc(t.sigla)}</div>
           <div class="item-texto">
             <div class="item-titulo">${esc(nomeCompletoTreino(t))}</div>
             <div class="item-sub">${contagens[i] === 1 ? '1 exercício' : `${contagens[i]} exercícios`}</div>
-          </div>
-          ${icone('avancar')}
-        </a>`).join('') || '<div class="vazio">Nenhum treino ainda.</div>'}
-      <button type="button" class="botao" id="novo-treino">${icone('mais')}Novo treino</button>
+          </div>`;
+        return ordenando ? `
+          <div class="item-historico">
+            ${conteudo}
+            <div class="ordem-botoes">
+              <button type="button" class="botao-icone" data-mover-treino="${esc(t.id)}" data-delta="-1" aria-label="Subir Treino ${esc(t.sigla)}" ${i === 0 ? 'disabled' : ''}>${icone('cima')}</button>
+              <button type="button" class="botao-icone" data-mover-treino="${esc(t.id)}" data-delta="1" aria-label="Descer Treino ${esc(t.sigla)}" ${i === treinos.length - 1 ? 'disabled' : ''}>${icone('baixo')}</button>
+            </div>
+          </div>` : `
+          <a class="item-historico item-link" href="#/ajustes/treino/${esc(t.id)}">
+            ${conteudo}
+            ${icone('avancar')}
+          </a>`;
+      }).join('') || '<div class="vazio">Nenhum treino ainda.</div>'}
+      ${ordenando ? '' : `<button type="button" class="botao" id="novo-treino">${icone('mais')}Novo treino</button>`}
     </div>
 
     <h2 class="rotulo-secao">Biblioteca</h2>
@@ -108,23 +127,23 @@ async function principal(view) {
     mostrarNotificacao();
   };
 
-  $('#novo-treino', view).onclick = async () => {
+  const botaoOrdenar = $('#ordenar-treinos', view);
+  if (botaoOrdenar) botaoOrdenar.onclick = () => { ordenando = !ordenando; principal(view); };
+  view.querySelectorAll('[data-mover-treino]').forEach((b) => {
+    b.onclick = async () => {
+      await moverTreino(b.dataset.moverTreino, Number(b.dataset.delta));
+      principal(view);
+    };
+  });
+
+  const botaoNovo = $('#novo-treino', view);
+  if (botaoNovo) botaoNovo.onclick = async () => {
     const treino = await criarTreino();
     ir(`ajustes/treino/${treino.id}`);
   };
 
   $('#exportar', view).onclick = async () => {
-    const backup = await exportarDados();
-    const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `treinos-backup-${chaveData()}.json`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    await setConfig('ultimo_backup', chaveData());
+    const backup = await baixarBackup();
     toast(`Backup exportado: ${resumoBackup(backup)}`);
     principal(view);
   };

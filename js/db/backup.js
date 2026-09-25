@@ -1,6 +1,6 @@
 // Backup completo em JSON: exporta todos os stores e restaura substituindo tudo.
 
-import { tx, req } from './db.js';
+import { tx, req, getConfig, setConfig, getAllPorIndice } from './db.js';
 import { DB_VERSAO } from './schema.js';
 import { chaveData } from '../lib/datas.js';
 
@@ -43,6 +43,49 @@ export function importarDados(backup) {
     const quando = new Date(backup.exportado_em);
     if (!Number.isNaN(quando.getTime())) t.objectStore('config').put({ chave: 'ultimo_backup', valor: chaveData(quando) });
   });
+}
+
+/** Gera o arquivo, baixa e marca a data do último backup. Retorna o backup. */
+export async function baixarBackup() {
+  const backup = await exportarDados();
+  const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `treinos-backup-${chaveData()}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await setConfig('ultimo_backup', chaveData());
+  return backup;
+}
+
+const DIAS_SEM_BACKUP = 30;
+const DIAS_ADIAR = 7;
+const TREINOS_PARA_LEMBRAR = 3;
+
+/**
+ * Se está na hora de lembrar do backup: já tem alguns treinos feitos, nenhum
+ * backup há 30 dias (ou nunca) e o lembrete não foi adiado.
+ * @returns {Promise<{ultimo: string|null} | null>}
+ */
+export async function lembreteBackup(hoje = chaveData()) {
+  const [ultimo, adiadoAte, feitos] = await Promise.all([
+    getConfig('ultimo_backup'),
+    getConfig('backup_adiado_ate'),
+    getAllPorIndice('sessoes', 'status', 'concluida'),
+  ]);
+  if (feitos.length < TREINOS_PARA_LEMBRAR) return null;
+  if (adiadoAte && adiadoAte > hoje) return null;
+  const dias = ultimo ? Math.round((new Date(`${hoje}T12:00`) - new Date(`${ultimo}T12:00`)) / 86400000) : Infinity;
+  return dias >= DIAS_SEM_BACKUP ? { ultimo, dias } : null;
+}
+
+export async function adiarLembreteBackup(hoje = new Date()) {
+  const ate = new Date(hoje);
+  ate.setDate(ate.getDate() + DIAS_ADIAR);
+  await setConfig('backup_adiado_ate', chaveData(ate));
 }
 
 export function resumoBackup(backup) {

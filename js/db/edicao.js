@@ -28,6 +28,19 @@ export async function atualizarTreino(id, campos) {
   return treino;
 }
 
+/** Sobe (-1) ou desce (+1) um treino na rotação A → B → C. */
+export function moverTreino(id, delta) {
+  return tx('treinos', 'readwrite', async (t) => {
+    const store = t.objectStore('treinos');
+    const lista = (await req(store.getAll())).sort((a, b) => a.ordem - b.ordem);
+    const de = lista.findIndex((x) => x.id === id);
+    const para = de + delta;
+    if (de < 0 || para < 0 || para >= lista.length) return;
+    [lista[de], lista[para]] = [lista[para], lista[de]];
+    lista.forEach((x, ordem) => { if (x.ordem !== ordem) store.put({ ...x, ordem }); });
+  });
+}
+
 /** Apaga o treino e a lista de exercícios dele. As sessões já feitas ficam no histórico. */
 export function excluirTreino(id) {
   return tx(['treinos', 'treino_exercicios'], 'readwrite', async (t) => {
