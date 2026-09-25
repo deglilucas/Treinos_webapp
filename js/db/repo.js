@@ -161,6 +161,9 @@ export const encerrarDescanso = (id, inicioEsperado) => alterarSessao(id, async 
  */
 export const salvarRascunhos = (id, rascunhos) => alterarSessao(id, (s) => { s.rascunhos = rascunhos; });
 
+/** Séries adicionadas além do planejado ({ itemId: quantas }), para sobreviver e a notificação contar. */
+export const salvarExtras = (id, extras) => alterarSessao(id, (s) => { s.extras = extras; });
+
 /** Muda o alvo do descanso (só a referência do bipe; o descanso continua até você encerrar). */
 export const ajustarDescanso = (id, deltaSeg) => alterarSessao(id, (s) => {
   if (!s.descanso_inicio) return;
@@ -183,6 +186,44 @@ export const concluirSessao = (id) => alterarSessao(id, async (s, agora, t) => {
   s.status = 'concluida';
   s.serie_em_curso = null;
 });
+
+/**
+ * Último sinal de vida do treino: a série mais recente, o começo do descanso
+ * ou da série de tempo, ou o próprio início.
+ */
+export async function ultimaAtividade(sessao) {
+  const series = await getAllPorIndice('series_registradas', 'sessao_id', sessao.id);
+  return Math.max(
+    sessao.hora_inicio,
+    sessao.descanso_inicio ?? 0,
+    sessao.serie_em_curso?.inicio ?? 0,
+    ...series.map((s) => s.registrada_em),
+  );
+}
+
+/**
+ * Conclui um treino que ficou aberto sem ninguém usar: termina no instante da
+ * última série (não agora), sem contar o descanso que ficou pendurado.
+ */
+export function concluirSessaoEsquecida(id) {
+  return tx(['sessoes', 'series_registradas'], 'readwrite', async (t) => {
+    const store = t.objectStore('sessoes');
+    const s = await req(store.get(id));
+    if (s?.status !== 'em_andamento') return s;
+    const series = await req(t.objectStore('series_registradas').index('sessao_id').getAll(id));
+    const fim = Math.max(s.hora_inicio, ...series.map((x) => x.registrada_em));
+    // Pausa que começou antes do fim conta até o fim; depois dele, não importa.
+    if (s.pausado_em && s.pausado_em < fim) s.tempo_pausado_ms += fim - s.pausado_em;
+    s.pausado_em = null;
+    s.hora_fim = fim;
+    s.status = 'concluida';
+    s.descanso_inicio = null;
+    s.descanso_serie_id = null;
+    s.serie_em_curso = null;
+    store.put(s);
+    return s;
+  });
+}
 
 /**
  * Cancela o treino em andamento: apaga a sessão e todas as séries dela numa

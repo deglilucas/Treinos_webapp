@@ -4,6 +4,7 @@ import { iniciarRouter } from './router.js';
 import { icone } from './ui/icones.js';
 import { $, esc, toast } from './ui/dom.js';
 import { iniciarNotificacoes } from './lib/notificacoes.js';
+import { verificarTreinoAberto } from './lib/treino-aberto.js';
 
 import * as inicio from './screens/inicio.js';
 import * as treinar from './screens/treinar.js';
@@ -51,6 +52,12 @@ async function iniciar() {
   registrarServiceWorker();
   // Se um botão da notificação avançou o treino, redesenha a tela atual.
   iniciarNotificacoes(() => window.dispatchEvent(new HashChangeEvent('hashchange')));
+
+  // Treino esquecido aberto: pergunta ao abrir e toda vez que o app volta.
+  verificarTreinoAberto();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') verificarTreinoAberto();
+  });
 }
 
 iniciar().catch((err) => {

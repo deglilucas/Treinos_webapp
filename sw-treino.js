@@ -59,12 +59,13 @@ async function carregarTreino(db) {
   });
 }
 
-/** Séries planejadas ainda não feitas, na ordem do treino. */
-function pendentes({ itens, series }) {
+/** Séries planejadas (e as extras do "+ Série") ainda não feitas, na ordem do treino. */
+function pendentes({ sessao, itens, series }) {
   const lista = [];
   for (const item of itens) {
     const feitas = new Set(series.filter((s) => s.exercicio_id === item.exercicio_id).map((s) => s.numero_serie));
-    for (let n = 1; n <= item.series; n++) if (!feitas.has(n)) lista.push({ item, numero: n });
+    const total = item.series + (sessao.extras?.[item.id] ?? 0);
+    for (let n = 1; n <= total; n++) if (!feitas.has(n)) lista.push({ item, numero: n });
   }
   return lista;
 }

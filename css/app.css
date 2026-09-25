@@ -943,3 +943,14 @@ select.entrada {
 .imagem-exercicio .midia-mini { width: 72px; }
 .imagem-acoes { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .botao-compacto { min-height: 40px; width: auto; padding: 0 14px; font-size: 14px; }
+
+/* ---------- Ajustes: ordenar treinos ---------- */
+.secao-cabecalho { display: flex; align-items: center; justify-content: space-between; }
+.secao-cabecalho .botao-texto { margin: 18px 0 4px; color: var(--accent); }
+.item-historico .ordem-botoes { margin: 0 -6px 0 auto; }
+
+/* ---------- Lembrete de backup ---------- */
+.lembrete { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+.lembrete .item-titulo { white-space: normal; }
+.lembrete-acoes { display: flex; align-items: center; gap: 12px; }
+.lembrete-acoes .botao-texto { margin: 0; }

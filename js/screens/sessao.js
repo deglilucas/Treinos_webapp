@@ -12,7 +12,7 @@ import {
   obterSessao, retomarSessao, pausarSessao, concluirSessao, cancelarSessao,
   exerciciosDoTreino, seriesDaSessao, ultimaReferencia, registrarSerie,
   atualizarSerie, removerSerie, encerrarDescanso, ajustarDescanso,
-  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino, salvarRascunhos,
+  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino, salvarRascunhos, salvarExtras,
 } from '../db/repo.js';
 import { get } from '../db/db.js';
 import {
@@ -77,7 +77,7 @@ export async function render(view, sessaoId) {
   ));
 
   let series = seriesIniciais;
-  const extras = {};             // séries adicionadas além do planejado, por item
+  const extras = { ...(sessao.extras ?? {}) }; // séries além do planejado, por item (salvas na sessão)
   // Valores digitados e ainda não registrados; voltam da sessão salva.
   const rascunhos = new Map(Object.entries(sessao.rascunhos ?? {}));
   let esperaRascunho = null; // gravação pendente (só grava o que mudou aqui, nunca por cima da notificação)
@@ -345,6 +345,7 @@ export async function render(view, sessaoId) {
       case 'mais-serie':
         extras[item.id] = (extras[item.id] ?? 0) + 1;
         desenharSeries(item);
+        sessao = await salvarExtras(sessao.id, { ...extras });
         break;
     }
   });

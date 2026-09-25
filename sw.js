@@ -34,6 +34,7 @@ const APP_SHELL = [
   './js/lib/alerta.js',
   './js/lib/notificacoes.js',
   './js/lib/traducao.js',
+  './js/lib/treino-aberto.js',
   './js/ui/dom.js',
   './js/ui/icones.js',
   './js/ui/sheet.js',
@@ -107,15 +108,30 @@ async function dasFontes(request) {
   return salvo ?? (await rede) ?? Response.error();
 }
 
-// Imagens: depois de baixada uma vez, fica para sempre no cache.
-async function daMidia(request) {
+// Imagens: ficam no cache depois de baixadas, até um limite. Passando dele,
+// saem as usadas há mais tempo (cada foto tem uns 70 KB; 400 ≈ 28 MB).
+const LIMITE_MIDIA = 400;
+
+async function aparar(cache) {
+  const chaves = await cache.keys(); // em ordem de inserção: as primeiras são as mais antigas
+  await Promise.all(chaves.slice(0, Math.max(0, chaves.length - LIMITE_MIDIA)).map((k) => cache.delete(k)));
+}
+
+async function daMidia(request, event) {
   const cache = await caches.open(CACHE_MIDIA);
   const salvo = await cache.match(request);
-  if (salvo) return salvo;
+  if (salvo) {
+    // Usou de novo: vai para o fim da fila, para não ser a próxima a sair.
+    const copia = salvo.clone(); // antes de entregar: depois o corpo já foi lido
+    event.waitUntil(cache.delete(request).then(() => cache.put(request, copia)).catch(() => {}));
+    return salvo;
+  }
   try {
     const resp = await fetch(request);
     // <img> cross-origin chega como resposta opaca; dá pra guardar do mesmo jeito.
-    if (resp.ok || resp.type === 'opaque') cache.put(request, resp.clone());
+    if (resp.ok || resp.type === 'opaque') {
+      event.waitUntil(cache.put(request, resp.clone()).then(() => aparar(cache)).catch(() => {}));
+    }
     return resp;
   } catch {
     return Response.error(); // a tela troca pelo fallback no onerror da imagem
@@ -132,6 +148,6 @@ self.addEventListener('fetch', (event) => {
   } else if (HOSTS_FONTES.includes(url.hostname)) {
     event.respondWith(dasFontes(request));
   } else if (request.destination === 'image' && HOSTS_MIDIA.includes(url.hostname)) {
-    event.respondWith(daMidia(request));
+    event.respondWith(daMidia(request, event));
   }
 });

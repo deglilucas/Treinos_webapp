@@ -52,6 +52,7 @@ export const DB_VERSAO = 1;
  * @property {number} descanso_duracao_ms       alvo do descanso (quando apitar)
  * @property {string|null} descanso_serie_id    série que abriu o descanso (recebe o descanso_seg)
  * @property {Record<string, {peso: string, reps: string}>} [rascunhos]  valores digitados e não registrados, por 'itemId:numero'
+ * @property {Record<string, number>} [extras]  séries adicionadas além do planejado, por itemId
  * @property {{exercicio_id: string, numero_serie: number, alvo_ms: number, inicio: number} | null} serie_em_curso
  *           série de tempo rodando; só termina por toque, o alvo é quando apitar
  *
