@@ -11,6 +11,7 @@ import { duracaoSessao, formatarDuracao } from '../lib/timer.js';
 import { esc, $ } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { ir } from '../router.js';
+import * as detalhe from './sessao-detalhe.js';
 
 // Mês exibido sobrevive à troca de abas enquanto o app está aberto.
 let mesVisivel = null; // { ano, mes }
@@ -80,13 +81,13 @@ function itemHistorico(item, treinosPorId) {
   const { sessao } = item;
   const treino = treinosPorId[sessao.treino_id];
   return `
-    <div class="item-historico">
+    <a class="item-historico item-link" href="#/inicio/sessao/${esc(sessao.id)}">
       <div class="selo">${esc(treino?.sigla ?? '?')}</div>
       <div class="item-texto">
         <div class="item-titulo">${esc(nomeCompletoTreino(treino))}</div>
         <div class="item-sub">${esc(rotuloDia(sessao.data))} · ${formatarDuracao(duracaoSessao(sessao))}</div>
       </div>
-    </div>`;
+    </a>`;
 }
 
 function acaoPrincipal(sugestao) {
@@ -109,7 +110,9 @@ function acaoPrincipal(sugestao) {
   };
 }
 
-export async function render(view) {
+export async function render(view, rota) {
+  if (rota?.params?.[0] === 'sessao' && rota.params[1]) return detalhe.render(view, rota.params[1], 'inicio');
+
   if (!mesVisivel) {
     const d = new Date();
     mesVisivel = { ano: d.getFullYear(), mes: d.getMonth() };

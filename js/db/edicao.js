@@ -148,3 +148,58 @@ export function combina(exercicio, termo) {
   const alvo = normalizar([exercicio.nome, ...(exercicio.apelidos ?? [])].join(' '));
   return palavras.every((p) => alvo.includes(p));
 }
+
+// ---------- Treinos já feitos (correções no histórico) ----------
+
+/** Apaga um treino do histórico com todas as séries dele. */
+export function excluirSessao(id) {
+  return tx(['sessoes', 'series_registradas'], 'readwrite', async (t) => {
+    const series = t.objectStore('series_registradas');
+    const chaves = await req(series.index('sessao_id').getAllKeys(id));
+    chaves.forEach((k) => series.delete(k));
+    t.objectStore('sessoes').delete(id);
+  });
+}
+
+/** Apaga uma série de um treino feito e renumera as do mesmo exercício (1, 2, 3…). */
+export function removerSerieDoHistorico(id) {
+  return tx('series_registradas', 'readwrite', async (t) => {
+    const store = t.objectStore('series_registradas');
+    const serie = await req(store.get(id));
+    if (!serie) return;
+    store.delete(id);
+    const resto = (await req(store.index('sessao_id').getAll(serie.sessao_id)))
+      .filter((s) => s.exercicio_id === serie.exercicio_id && s.id !== id)
+      .sort((a, b) => a.numero_serie - b.numero_serie);
+    resto.forEach((s, i) => { if (s.numero_serie !== i + 1) store.put({ ...s, numero_serie: i + 1 }); });
+  });
+}
+
+/** Série esquecida: entra depois das outras do mesmo exercício, sem mexer em descanso. */
+export async function adicionarSerieManual(sessaoId, exercicioId, valores) {
+  const doExercicio = (await getAllPorIndice('series_registradas', 'sessao_id', sessaoId))
+    .filter((s) => s.exercicio_id === exercicioId);
+  const ultima = doExercicio.sort((a, b) => a.numero_serie - b.numero_serie).at(-1);
+  const sessao = await get('sessoes', sessaoId);
+  const serie = {
+    id: novoId(),
+    sessao_id: sessaoId,
+    exercicio_id: exercicioId,
+    numero_serie: (ultima?.numero_serie ?? 0) + 1,
+    peso: valores.peso ?? null,
+    reps: valores.reps ?? null,
+    duracao: valores.duracao ?? null,
+    registrada_em: (ultima?.registrada_em ?? sessao.hora_inicio) + 1,
+  };
+  await put('series_registradas', serie);
+  return serie;
+}
+
+/** Corrige a duração (ex.: esqueceu de concluir e o cronômetro ficou rodando). */
+export async function ajustarDuracaoSessao(id, duracaoMs) {
+  const sessao = await get('sessoes', id);
+  if (!sessao) return null;
+  sessao.hora_fim = sessao.hora_inicio + (sessao.tempo_pausado_ms || 0) + duracaoMs;
+  await put('sessoes', sessao);
+  return sessao;
+}
