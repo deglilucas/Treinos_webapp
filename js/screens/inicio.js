@@ -1,7 +1,7 @@
 // Tela Início: calendário do mês, histórico recente e atalho para o treino do dia.
 
 import {
-  listarTreinos, sessoesEntre, historicoRecente, sugerirTreino, nomeCompletoTreino,
+  listarTreinos, sessoesEntre, historicoRecente, sugerirTreino, nomeCompletoTreino, iniciarSessao,
 } from '../db/repo.js';
 import {
   chaveData, deChave, semanaDe, rotuloDia, rotuloIntervalo, diasEntre,
@@ -91,13 +91,22 @@ function itemHistorico(item, treinosPorId) {
 
 function acaoPrincipal(sugestao) {
   if (!sugestao?.treino) {
-    return { legenda: 'Nenhum treino montado ainda', rotulo: 'Montar meus treinos', destino: 'ajustes' };
+    return { legenda: 'Nenhum treino montado ainda', rotulo: 'Montar meus treinos', executar: () => ir('ajustes') };
   }
   const nome = nomeCompletoTreino(sugestao.treino);
   if (sugestao.sessao) {
-    return { legenda: `${nome} · em andamento`, rotulo: 'Retomar treino', destino: `treinar/sessao/${sugestao.sessao.id}` };
+    const destino = `treinar/sessao/${sugestao.sessao.id}`;
+    const legenda = sugestao.sessao.pausado_em ? `${nome} · pausado` : `${nome} · em andamento`;
+    return { legenda, rotulo: 'Retomar treino', executar: () => ir(destino) };
   }
-  return { legenda: nome, rotulo: 'Iniciar treino de hoje', destino: `treinar?treino=${sugestao.treino.id}` };
+  return {
+    legenda: nome,
+    rotulo: 'Iniciar treino de hoje',
+    executar: async () => {
+      const sessao = await iniciarSessao(sugestao.treino.id);
+      ir(`treinar/sessao/${sessao.id}`);
+    },
+  };
 }
 
 export async function render(view) {
@@ -149,5 +158,5 @@ export async function render(view) {
       desenharCalendario(view, treinosPorId);
     };
   });
-  $('#acao-principal', view).onclick = () => ir(acao.destino);
+  $('#acao-principal', view).onclick = acao.executar;
 }

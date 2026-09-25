@@ -50,6 +50,8 @@ export const DB_VERSAO = 1;
  * @property {number} tempo_pausado_ms  soma das pausas já encerradas
  * @property {number|null} descanso_inicio      epoch ms
  * @property {number} descanso_duracao_ms
+ * @property {{exercicio_id: string, numero_serie: number, alvo_ms: number, inicio: number} | null} serie_em_curso
+ *           série de tempo rodando (o início fica salvo para o cronômetro sobreviver à tela bloqueada)
  *
  * @typedef SerieRegistrada
  * @property {string} id

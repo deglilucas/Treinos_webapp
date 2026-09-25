@@ -1,6 +1,6 @@
 // Consultas e operações de domínio em cima do IndexedDB.
 
-import { tx, req, get, getAll, getAllPorIndice, put, novoId } from './db.js';
+import { tx, req, get, getAll, getAllPorIndice, put, del, novoId } from './db.js';
 import { chaveData, somarDias } from '../lib/datas.js';
 
 // ---------- Treinos ----------
@@ -97,6 +97,7 @@ export async function iniciarSessao(treinoId) {
     tempo_pausado_ms: 0,
     descanso_inicio: null,
     descanso_duracao_ms: 0,
+    serie_em_curso: null,
   };
   await put('sessoes', sessao);
   return sessao;
@@ -124,6 +125,7 @@ function encerrarPausa(sessao, agora) {
 export const pausarSessao = (id) => alterarSessao(id, (s, agora) => {
   if (!s.pausado_em) s.pausado_em = agora;
   s.descanso_inicio = null;
+  s.serie_em_curso = null;
 });
 
 export const retomarSessao = (id) => alterarSessao(id, encerrarPausa);
@@ -133,13 +135,32 @@ export const iniciarDescanso = (id, segundos) => alterarSessao(id, (s, agora) =>
   s.descanso_duracao_ms = segundos * 1000;
 });
 
-export const encerrarDescanso = (id) => alterarSessao(id, (s) => { s.descanso_inicio = null; });
+/** Encerra o descanso — só se ainda for o mesmo que a tela viu terminar. */
+export const encerrarDescanso = (id, inicioEsperado) => alterarSessao(id, (s) => {
+  if (inicioEsperado == null || s.descanso_inicio === inicioEsperado) s.descanso_inicio = null;
+});
+
+export const ajustarDescanso = (id, deltaSeg) => alterarSessao(id, (s, agora) => {
+  if (!s.descanso_inicio) return;
+  const minimo = agora - s.descanso_inicio; // não dá pra terminar no passado
+  s.descanso_duracao_ms = Math.max(minimo, s.descanso_duracao_ms + deltaSeg * 1000);
+});
+
+/** Começa uma série do tipo tempo. Guarda o instante de início na sessão. */
+export const iniciarSerieTempo = (id, { exercicio_id, numero_serie, alvo_ms }) =>
+  alterarSessao(id, (s, agora) => {
+    s.serie_em_curso = { exercicio_id, numero_serie, alvo_ms, inicio: agora };
+    s.descanso_inicio = null;
+  });
+
+export const descartarSerieTempo = (id) => alterarSessao(id, (s) => { s.serie_em_curso = null; });
 
 export const concluirSessao = (id) => alterarSessao(id, (s, agora) => {
   encerrarPausa(s, agora);
   s.hora_fim = agora;
   s.status = 'concluida';
   s.descanso_inicio = null;
+  s.serie_em_curso = null;
 });
 
 /**
@@ -163,3 +184,93 @@ export function cancelarSessao(id) {
 }
 
 export const obterSessao = (id) => get('sessoes', id);
+
+// ---------- Exercícios do treino e séries ----------
+
+/** Itens do treino na ordem, já com o exercício junto. Ignora exercícios apagados. */
+export async function exerciciosDoTreino(treinoId) {
+  const itens = await getAllPorIndice('treino_exercicios', 'treino_id', treinoId);
+  itens.sort((a, b) => a.ordem - b.ordem);
+  const exercicios = await Promise.all(itens.map((te) => get('exercicios', te.exercicio_id)));
+  return itens
+    .map((te, i) => ({ ...te, exercicio: exercicios[i] }))
+    .filter((te) => te.exercicio);
+}
+
+export const seriesDaSessao = (sessaoId) =>
+  getAllPorIndice('series_registradas', 'sessao_id', sessaoId);
+
+/**
+ * O que foi feito no exercício na última sessão concluída (fora a atual).
+ * @returns {Promise<{data: string, series: object[]} | null>}
+ */
+export async function ultimaReferencia(exercicioId, sessaoAtualId) {
+  const todas = await getAllPorIndice('series_registradas', 'exercicio_id', exercicioId);
+  const porSessao = new Map();
+  for (const serie of todas) {
+    if (serie.sessao_id === sessaoAtualId) continue;
+    const grupo = porSessao.get(serie.sessao_id) ?? { ultima: 0, series: [] };
+    grupo.series.push(serie);
+    grupo.ultima = Math.max(grupo.ultima, serie.registrada_em);
+    porSessao.set(serie.sessao_id, grupo);
+  }
+  const ordenadas = [...porSessao.entries()].sort((a, b) => b[1].ultima - a[1].ultima);
+  for (const [sessaoId, grupo] of ordenadas) {
+    const sessao = await get('sessoes', sessaoId);
+    if (sessao?.status === 'concluida') {
+      return { data: sessao.data, series: grupo.series.sort((a, b) => a.numero_serie - b.numero_serie) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Registra a série e, na mesma transação, começa o descanso a partir do
+ * instante em que ela terminou (`registradaEm`). `descansoSeg = 0` não inicia descanso.
+ */
+export function registrarSerie({
+  sessaoId, exercicioId, numero, peso = null, reps = null, duracao = null,
+  registradaEm = Date.now(), descansoSeg = 0,
+}) {
+  return tx(['sessoes', 'series_registradas'], 'readwrite', async (t) => {
+    const sessoes = t.objectStore('sessoes');
+    const sessao = await req(sessoes.get(sessaoId));
+    if (sessao?.status !== 'em_andamento') throw new Error('Sessão não está em andamento');
+
+    const serie = {
+      id: novoId(),
+      sessao_id: sessaoId,
+      exercicio_id: exercicioId,
+      numero_serie: numero,
+      peso, reps, duracao,
+      registrada_em: registradaEm,
+    };
+    t.objectStore('series_registradas').put(serie);
+
+    sessao.serie_em_curso = null;
+    sessao.descanso_inicio = descansoSeg > 0 ? registradaEm : null;
+    sessao.descanso_duracao_ms = descansoSeg * 1000;
+    sessoes.put(sessao);
+    return { sessao, serie };
+  });
+}
+
+export function atualizarSerie(id, campos) {
+  return tx('series_registradas', 'readwrite', async (t) => {
+    const store = t.objectStore('series_registradas');
+    const serie = await req(store.get(id));
+    if (!serie) return null;
+    Object.assign(serie, campos);
+    store.put(serie);
+    return serie;
+  });
+}
+
+export const removerSerie = (id) => del('series_registradas', id);
+
+export async function ultimaSessaoDoTreino(treinoId) {
+  const sessoes = await getAllPorIndice('sessoes', 'treino_id', treinoId);
+  return sessoes
+    .filter((s) => s.status === 'concluida')
+    .sort((a, b) => b.hora_inicio - a.hora_inicio)[0] ?? null;
+}

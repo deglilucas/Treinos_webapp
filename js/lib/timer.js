@@ -41,6 +41,14 @@ export function formatarDuracao(ms) {
   return resto ? `${h}h ${resto}min` : `${h}h`;
 }
 
+/** 45 → '45s' · 90 → '1min30' · 120 → '2min' */
+export function formatarSegundos(seg) {
+  if (seg < 60) return `${seg}s`;
+  const m = Math.floor(seg / 60);
+  const s = seg % 60;
+  return s ? `${m}min${String(s).padStart(2, '0')}` : `${m}min`;
+}
+
 /**
  * Chama `fn(agora)` periodicamente e também sempre que o app volta ao primeiro
  * plano (desbloqueio de tela, troca de app), para a tela nunca mostrar valor velho.
