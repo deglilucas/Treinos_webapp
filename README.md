@@ -27,6 +27,7 @@ mostra "Nova versão disponível" quando o service worker novo assume.
 index.html            shell do app (tabbar + área das telas)
 manifest.json         instalação como app
 sw.js                 cache offline: app shell, fontes e GIFs
+sw-treino.js          notificação do treino com botões (importado pelo sw.js)
 css/tokens.css        cores, fontes, raios, espaçamentos
 css/app.css           componentes e telas
 icons/                ícones do app (svg + png)
@@ -72,6 +73,17 @@ terminada abre um descanso, inclusive entre exercícios; só a última do treino
 não abre, e o app pergunta se quer concluir. O descanso vai até o toque em
 "Iniciar série" (ou até registrar a próxima) e a duração real fica em
 `descanso_seg` da série que o abriu.
+
+## Notificação do treino
+
+Ativada em Ajustes (ou no convite do primeiro treino). Com um treino rodando e
+o app em segundo plano, o service worker (`sw-treino.js`) mostra a fase atual
+com um botão: no descanso, **Iniciar série**; numa série, **Concluir série**
+(registra com o que está digitado na tela, ou com a sugestão). Ele lê e grava
+direto no IndexedDB, seguindo as mesmas regras da tela, e avisa o app para
+redesenhar quando você volta. O bipe do alvo vem pela notificação, com
+vibração, enquanto o navegador deixa o SW acordado (uns 5 minutos). Feito
+para Android/Chrome; no iPhone a notificação não tem botões.
 
 ## GIFs dos exercícios
 

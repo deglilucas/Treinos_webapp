@@ -3,6 +3,8 @@
 // A cada deploy que mude arquivos do app, suba VERSAO. O cache de mídia não
 // depende da versão, então os GIFs já vistos continuam disponíveis offline.
 
+importScripts('./sw-treino.js'); // notificação do treino com botões
+
 const VERSAO = 'v3';
 const CACHE_APP = `treinos-app-${VERSAO}`;
 const CACHE_FONTES = 'treinos-fontes';
@@ -29,6 +31,7 @@ const APP_SHELL = [
   './js/lib/timer.js',
   './js/lib/midia.js',
   './js/lib/alerta.js',
+  './js/lib/notificacoes.js',
   './js/ui/dom.js',
   './js/ui/icones.js',
   './js/ui/sheet.js',
@@ -51,6 +54,8 @@ const APP_SHELL = [
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
+  './icons/badge-96.png',
+  './sw-treino.js',
 ];
 
 const HOSTS_FONTES = ['fonts.googleapis.com', 'fonts.gstatic.com'];

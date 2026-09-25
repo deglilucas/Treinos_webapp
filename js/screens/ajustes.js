@@ -11,6 +11,7 @@ import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { abrirSheet } from '../ui/sheet.js';
 import { ir } from '../router.js';
+import { suportado, permissao, estaAtivado, ativar, desativar } from '../lib/notificacoes.js';
 import * as editorTreino from './treino-editor.js';
 import * as adicionarExercicio from './adicionar-exercicio.js';
 import * as biblioteca from './biblioteca.js';
@@ -61,6 +62,18 @@ async function principal(view) {
       ${icone('avancar')}
     </a>
 
+    <h2 class="rotulo-secao">Treino</h2>
+    <div class="card">
+      <div class="linha-opcao">
+        <div class="item-texto">
+          <div class="item-titulo">Notificação durante o treino</div>
+          <div class="item-sub" id="estado-notificacao"></div>
+        </div>
+        <button type="button" class="interruptor" id="alternar-notificacao" role="switch" aria-checked="false" aria-label="Notificação durante o treino"><span></span></button>
+      </div>
+      <p class="texto-apoio fraco">Com o app em segundo plano, mostra o descanso ou a série atual com botão para iniciar ou concluir, e apita no alvo. O bipe funciona para alvos de até uns 5 minutos.</p>
+    </div>
+
     <h2 class="rotulo-secao">Backup</h2>
     <div class="card">
       <p class="texto-apoio">Seus dados ficam só neste aparelho. Exporte um backup de vez em quando
@@ -72,6 +85,26 @@ async function principal(view) {
       </div>
       <input type="file" id="arquivo-backup" accept="application/json,.json" hidden>
     </div>`;
+
+  const interruptor = $('#alternar-notificacao', view);
+  const mostrarNotificacao = () => {
+    const perm = permissao();
+    const ligado = estaAtivado();
+    interruptor.setAttribute('aria-checked', String(ligado));
+    interruptor.disabled = perm === 'sem-suporte' || perm === 'denied';
+    $('#estado-notificacao', view).textContent = !suportado() ? 'Este navegador não suporta notificações'
+      : perm === 'denied' ? 'Bloqueada nas permissões do navegador para este site'
+        : ligado ? 'Ativada' : 'Desativada';
+  };
+  mostrarNotificacao();
+  interruptor.onclick = async () => {
+    if (estaAtivado()) await desativar();
+    else {
+      const resultado = await ativar();
+      if (resultado !== 'granted') toast('O navegador não liberou a notificação');
+    }
+    mostrarNotificacao();
+  };
 
   $('#novo-treino', view).onclick = async () => {
     const treino = await criarTreino();

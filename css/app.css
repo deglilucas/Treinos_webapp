@@ -889,3 +889,29 @@ select.entrada {
 #conteudo-progresso .botao-novo-registro + .chips { margin-top: 14px; }
 .grade-medidas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
 .campo-medida .unidade { color: var(--text-3); font-weight: 500; }
+
+/* ---------- Interruptor ---------- */
+.linha-opcao { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.linha-opcao .item-texto { flex: 1; }
+.linha-opcao .item-titulo { white-space: normal; }
+.interruptor {
+  position: relative;
+  flex: none;
+  width: 50px; height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.interruptor span {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: transform 0.15s, background 0.15s;
+}
+.interruptor[aria-checked="true"] { background: var(--accent); }
+.interruptor[aria-checked="true"] span { transform: translateX(20px); background: var(--on-accent); }
+.interruptor:disabled { opacity: 0.4; cursor: default; }
