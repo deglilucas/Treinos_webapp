@@ -11,7 +11,9 @@ import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { abrirSheet } from '../ui/sheet.js';
 import { ir } from '../router.js';
-import { suportado, permissao, estaAtivado, ativar, desativar } from '../lib/notificacoes.js';
+import {
+  suportado, permissao, estaAtivado, preferenciaLigada, ativar, desativar, instalado, observarPermissao, testar,
+} from '../lib/notificacoes.js';
 import * as editorTreino from './treino-editor.js';
 import * as adicionarExercicio from './adicionar-exercicio.js';
 import * as biblioteca from './biblioteca.js';
@@ -26,11 +28,13 @@ export async function render(view, rota) {
   if (sub === 'catalogo') return catalogo.render(view, rota.query);
   if (sub === 'exercicio' && id) return formExercicio.render(view, id, rota.query);
   ordenando = false; // entrar na aba sempre começa fora do modo de ordenar
-  return principal(view);
+  await principal(view);
+  return () => { pararDeObservarPermissao?.(); pararDeObservarPermissao = null; };
 }
 
 // Modo de ordenar a rotação dos treinos (setas no lugar do link).
 let ordenando = false;
+let pararDeObservarPermissao = null;
 
 async function principal(view) {
   const [treinos, exercicios, ultimoBackup] = await Promise.all([
@@ -92,6 +96,10 @@ async function principal(view) {
         </div>
         <button type="button" class="interruptor" id="alternar-notificacao" role="switch" aria-checked="false" aria-label="Notificação durante o treino"><span></span></button>
       </div>
+      <div class="linha-teste" id="linha-teste" hidden>
+        <button type="button" class="botao botao-compacto" id="testar-notificacao">Enviar notificação de teste</button>
+      </div>
+      <p class="texto-apoio fraco diagnostico" id="diagnostico-notificacao"></p>
       <p class="texto-apoio fraco">Com o app em segundo plano, mostra o descanso ou a série atual com botão para iniciar ou concluir, e apita no alvo. O bipe funciona para alvos de até uns 5 minutos.</p>
     </div>
 
@@ -108,23 +116,65 @@ async function principal(view) {
     </div>`;
 
   const interruptor = $('#alternar-notificacao', view);
+  const nomesPermissao = { granted: 'liberada', denied: 'bloqueada', default: 'ainda não pedida', 'sem-suporte': 'sem suporte' };
   const mostrarNotificacao = () => {
+    if (!interruptor.isConnected) return;
     const perm = permissao();
     const ligado = estaAtivado();
     interruptor.setAttribute('aria-checked', String(ligado));
-    interruptor.disabled = perm === 'sem-suporte' || perm === 'denied';
+    interruptor.disabled = perm === 'sem-suporte';
     $('#estado-notificacao', view).textContent = !suportado() ? 'Este navegador não suporta notificações'
-      : perm === 'denied' ? 'Bloqueada nas permissões do navegador para este site'
+      : perm === 'denied' ? 'Bloqueada. Toque no botão para ver como liberar'
         : ligado ? 'Ativada' : 'Desativada';
+    $('#linha-teste', view).hidden = !ligado;
+    // Estado real, para conferir (e mandar print) se algo não funcionar.
+    $('#diagnostico-notificacao', view).textContent = `Permissão do sistema: ${nomesPermissao[perm] ?? perm}`
+      + ` · ${instalado() ? 'app instalado' : 'aberto no navegador'}`
+      + ` · preferência no app: ${preferenciaLigada() ? 'ligada' : 'desligada'}`;
   };
   mostrarNotificacao();
+  // A permissão muda fora do app (configurações do Android/Chrome): acompanha ao vivo.
+  pararDeObservarPermissao?.();
+  pararDeObservarPermissao = observarPermissao(mostrarNotificacao);
+
+  const comoLiberar = async () => {
+    const passos = instalado()
+      ? '1. Abra as Configurações do Android → Apps → Treinos → Notificações e ative.\n'
+        + '2. Se não aparecer "Treinos", faça o mesmo em Apps → Chrome → Notificações.\n'
+        + '3. Volte aqui e toque em Verificar de novo.'
+      : '1. No Chrome, toque no ícone à esquerda do endereço → Permissões → Notificações → Permitir.\n'
+        + '2. Confira também Configurações do Android → Apps → Chrome → Notificações.\n'
+        + '3. Volte aqui e toque em Verificar de novo.';
+    const escolha = await abrirSheet({
+      titulo: 'Notificação bloqueada',
+      texto: `O sistema está bloqueando as notificações deste app, e o app não consegue pedir de novo sozinho.\n\n${passos}`,
+      acoes: [{ id: 'verificar', rotulo: 'Verificar de novo', primario: true }],
+      rotuloFechar: 'Fechar',
+    });
+    if (escolha !== 'verificar') return;
+    if (permissao() === 'denied') toast('Ainda bloqueada no sistema');
+    else if ((await ativar()) === 'granted') toast('Notificação ativada');
+    mostrarNotificacao();
+  };
+
   interruptor.onclick = async () => {
     if (estaAtivado()) await desativar();
+    else if (permissao() === 'denied') await comoLiberar();
     else {
       const resultado = await ativar();
-      if (resultado !== 'granted') toast('O navegador não liberou a notificação');
+      if (resultado === 'denied') await comoLiberar();
+      else if (resultado !== 'granted') toast('A permissão não foi dada. Tente de novo e toque em Permitir.');
     }
     mostrarNotificacao();
+  };
+
+  $('#testar-notificacao', view).onclick = async () => {
+    try {
+      await testar();
+      toast('Notificação de teste enviada');
+    } catch (err) {
+      toast(`Não deu pra mostrar: ${err.message}`);
+    }
   };
 
   const botaoOrdenar = $('#ordenar-treinos', view);
