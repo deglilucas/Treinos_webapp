@@ -11,6 +11,42 @@ let mudouLaFora = false;   // um botão da notificação mexeu no treino enquant
 export const suportado = () => 'Notification' in window && 'serviceWorker' in navigator;
 export const permissao = () => (suportado() ? Notification.permission : 'sem-suporte');
 export const estaAtivado = () => ativado && permissao() === 'granted';
+export const preferenciaLigada = () => ativado;
+
+/** Aberto como app instalado (tela inicial) ou dentro do navegador. */
+export const instalado = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+
+/**
+ * Chama `fn` sempre que a permissão pode ter mudado: o sistema avisou, ou o
+ * app voltou do segundo plano (quem libera nas configurações volta para cá).
+ * Retorna a função que para de observar.
+ */
+export function observarPermissao(fn) {
+  const aoVoltar = () => { if (document.visibilityState === 'visible') fn(); };
+  document.addEventListener('visibilitychange', aoVoltar);
+  window.addEventListener('focus', fn);
+  let status = null;
+  navigator.permissions?.query({ name: 'notifications' })
+    .then((s) => { status = s; s.addEventListener('change', fn); })
+    .catch(() => {});
+  return () => {
+    document.removeEventListener('visibilitychange', aoVoltar);
+    window.removeEventListener('focus', fn);
+    status?.removeEventListener('change', fn);
+  };
+}
+
+/** Mostra uma notificação de teste pelo service worker (o mesmo caminho do treino). */
+export async function testar() {
+  const reg = await navigator.serviceWorker.ready;
+  await reg.showNotification('Treinos · teste', {
+    body: 'Se você está vendo isto, a notificação do treino vai funcionar.',
+    tag: 'teste',
+    icon: './icons/icon-192.png',
+    badge: './icons/badge-96.png',
+    vibrate: [150],
+  });
+}
 
 async function enviar(mensagem) {
   const reg = await navigator.serviceWorker?.ready;

@@ -954,3 +954,6 @@ select.entrada {
 .lembrete .item-titulo { white-space: normal; }
 .lembrete-acoes { display: flex; align-items: center; gap: 12px; }
 .lembrete-acoes .botao-texto { margin: 0; }
+.sheet-texto { white-space: pre-line; }
+.linha-teste { margin: 4px 0 12px; }
+.diagnostico { margin-top: 10px; font-size: 12px; }
