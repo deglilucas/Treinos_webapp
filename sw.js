@@ -19,6 +19,7 @@ const APP_SHELL = [
   './js/db/db.js',
   './js/db/schema.js',
   './js/db/seed.js',
+  './js/db/biblioteca.js',
   './js/db/repo.js',
   './js/db/edicao.js',
   './js/db/backup.js',
