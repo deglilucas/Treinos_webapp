@@ -10,7 +10,7 @@ export const $ = (sel, raiz = document) => raiz.querySelector(sel);
 let timerToast;
 
 /** Mensagem curta no rodapé. `acao` opcional: { rotulo, fn }. */
-export function toast(texto, acao, duracaoMs = 4000) {
+export function toast(texto, acao, duracaoMs = 2500) {
   const el = $('#toast');
   el.innerHTML = `<span>${esc(texto)}</span>${acao ? `<button type="button">${esc(acao.rotulo)}</button>` : ''}`;
   el.hidden = false;
