@@ -85,10 +85,12 @@ export function graficoLinha(el, pontos, { formatar, formatarEixo = formatar, ze
     }
   });
 
-  // Rótulo só no último ponto
+  // Rótulo só no último ponto; vai para baixo quando a linha chega descendo (não cruza o texto).
   const ultimo = pontos.at(-1);
+  const penultimo = pontos.at(-2);
+  const descendo = penultimo && penultimo.y > ultimo.y && y(ultimo.y) + 22 < base;
   const rotuloFim = svg('text', {
-    x: x(ultimo.t), y: y(ultimo.y) - 12,
+    x: x(ultimo.t), y: y(ultimo.y) + (descendo ? 22 : -12),
     'text-anchor': x(ultimo.t) > largura - 60 ? 'end' : 'middle',
     class: 'grafico-rotulo',
   });

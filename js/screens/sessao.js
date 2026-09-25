@@ -1,9 +1,12 @@
 // Execução do treino: lista de exercícios com as séries dentro de cada card.
 //
 // Nenhuma fase termina sozinha. Série de tempo e descanso contam o tempo que
-// passou; o alvo serve só para apitar. Quem avança é o toque: parar a série
-// registra a duração real e começa o descanso; o descanso vai até você
-// encerrar ou registrar a próxima série.
+// passou; o alvo serve só para apitar. Quem avança é o toque:
+// - terminar uma série (check ou parar) sempre abre um descanso, inclusive
+//   entre um exercício e outro; só a última série do treino não abre, e aí o
+//   app pergunta se quer concluir;
+// - o descanso vai até o toque em "Iniciar série" (ou até registrar a próxima)
+//   e a duração real fica gravada na série que o abriu.
 
 import {
   obterSessao, retomarSessao, pausarSessao, concluirSessao, cancelarSessao,
@@ -215,7 +218,7 @@ export async function render(view, sessaoId) {
         <div class="descanso-acoes">
           <button type="button" class="chip" data-descanso="-15" aria-label="Diminuir alvo em 15 segundos">−15s</button>
           <button type="button" class="chip" data-descanso="15" aria-label="Aumentar alvo em 15 segundos">+15s</button>
-          <button type="button" class="chip chip-destaque" data-descanso="encerrar">Encerrar</button>
+          <button type="button" class="chip chip-destaque" data-descanso="iniciar">Iniciar série</button>
         </div>
       </div>
     </div>`;
@@ -241,6 +244,18 @@ export async function render(view, sessaoId) {
     sessao = r.sessao;
     series = [...series, r.serie];
     rascunhos.delete(`${item.id}:${numero}`);
+    desenharSeries(item);
+    tick(Date.now());
+    if (restantes <= 0) perguntarConclusao();
+  }
+
+  async function iniciarTempo(item, numero) {
+    if (sessao.serie_em_curso) await pararSerieTempo();
+    sessao = await iniciarSerieTempo(sessao.id, {
+      exercicio_id: item.exercicio_id,
+      numero_serie: numero,
+      alvo_ms: alvoSeg(item) * 1000,
+    });
     desenharSeries(item);
     tick(Date.now());
   }
@@ -304,14 +319,7 @@ export async function render(view, sessaoId) {
         break;
       }
       case 'iniciar-tempo':
-        if (sessao.serie_em_curso) await pararSerieTempo();
-        sessao = await iniciarSerieTempo(sessao.id, {
-          exercicio_id: item.exercicio_id,
-          numero_serie: Number(linha.dataset.num),
-          alvo_ms: alvoSeg(item) * 1000,
-        });
-        desenharSeries(item);
-        tick(Date.now());
+        await iniciarTempo(item, Number(linha.dataset.num));
         break;
       case 'parar-tempo':
         await pararSerieTempo();
@@ -356,11 +364,23 @@ export async function render(view, sessaoId) {
   barra.addEventListener('click', async (e) => {
     const botao = e.target.closest('[data-descanso]');
     if (!botao || !sessao.descanso_inicio) return;
+    prepararAudio();
     const valor = botao.dataset.descanso;
-    sessao = valor === 'encerrar'
-      ? await encerrarDescanso(sessao.id, sessao.descanso_inicio)
-      : await ajustarDescanso(sessao.id, Number(valor));
-    tick(Date.now());
+    if (valor !== 'iniciar') {
+      sessao = await ajustarDescanso(sessao.id, Number(valor));
+      tick(Date.now());
+      return;
+    }
+    // "Iniciar série": fecha o descanso. Se a próxima série for de tempo, já dá o play nela.
+    const proxima = view.querySelector('.serie.proxima');
+    const item = proxima && itemPorId.get(proxima.closest('.card-exercicio').dataset.item);
+    if (item?.exercicio.tipo_registro === 'tempo') {
+      await iniciarTempo(item, Number(proxima.dataset.num));
+    } else {
+      sessao = await encerrarDescanso(sessao.id, sessao.descanso_inicio);
+      tick(Date.now());
+    }
+    proxima?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
   function mostrarDescanso(visivel) {
@@ -445,6 +465,23 @@ export async function render(view, sessaoId) {
     }
   };
 
+  async function finalizar() {
+    const final = await concluirSessao(sessao.id);
+    ir('inicio');
+    toast(`Treino concluído · ${formatarDuracao(duracaoSessao(final))}`);
+  }
+
+  // Depois da última série não há descanso: o treino acaba, mas só com o seu toque.
+  async function perguntarConclusao() {
+    const ok = await abrirSheet({
+      titulo: 'Treino completo',
+      texto: 'Todas as séries foram registradas.',
+      acoes: [{ id: 'sim', rotulo: 'Concluir treino', primario: true }],
+      rotuloFechar: 'Continuar treinando',
+    });
+    if (ok) await finalizar();
+  }
+
   $('#concluir', view).onclick = async () => {
     if (!series.length) {
       const ok = await abrirSheet({
@@ -467,9 +504,7 @@ export async function render(view, sessaoId) {
       });
       if (!ok) return;
     }
-    const final = await concluirSessao(sessao.id);
-    ir('inicio');
-    toast(`Treino concluído · ${formatarDuracao(duracaoSessao(final))}`);
+    await finalizar();
   };
 
   return () => {
