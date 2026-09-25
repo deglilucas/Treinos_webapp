@@ -447,9 +447,13 @@ svg.icone { width: 24px; height: 24px; flex: none; }
   padding-left: 8px;
 }
 .serie-tempo-rotulo { color: var(--text-3); font-size: 13px; }
+.serie.tempo:not(.feita):not(.rodando) .serie-tempo { color: var(--text-3); }
+.serie.tempo.feita .serie-tempo { color: var(--accent); }
 .serie.rodando { background: var(--surface-2); }
 .serie.rodando .serie-tempo { color: var(--accent); }
 .serie.rodando .serie-check { border-color: var(--accent); color: var(--accent); }
+.serie.rodando.passou .serie-tempo-rotulo { color: var(--accent); }
+.serie.rodando.passou .serie-check { background: var(--accent); color: var(--on-accent); }
 
 .botao-texto {
   display: inline-flex;
@@ -500,6 +504,9 @@ svg.icone { width: 24px; height: 24px; flex: none; }
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
+.descanso-alvo { color: var(--text-3); font-size: 12px; margin-top: 2px; white-space: nowrap; }
+.barra-descanso.passou .descanso-tempo,
+.barra-descanso.passou .descanso-alvo { color: var(--accent); }
 .descanso-acoes { display: flex; gap: 6px; }
 .chip {
   height: 40px;

@@ -48,10 +48,10 @@ export const DB_VERSAO = 1;
  * @property {'em_andamento' | 'concluida'} status
  * @property {number|null} pausado_em   epoch ms quando "pausar e sair"
  * @property {number} tempo_pausado_ms  soma das pausas já encerradas
- * @property {number|null} descanso_inicio      epoch ms
- * @property {number} descanso_duracao_ms
+ * @property {number|null} descanso_inicio      epoch ms; o descanso só termina por toque
+ * @property {number} descanso_duracao_ms       alvo do descanso (quando apitar)
  * @property {{exercicio_id: string, numero_serie: number, alvo_ms: number, inicio: number} | null} serie_em_curso
- *           série de tempo rodando (o início fica salvo para o cronômetro sobreviver à tela bloqueada)
+ *           série de tempo rodando; só termina por toque, o alvo é quando apitar
  *
  * @typedef SerieRegistrada
  * @property {string} id

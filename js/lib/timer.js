@@ -13,13 +13,7 @@ export function duracaoSessao(sessao, agora = Date.now()) {
   return Math.max(0, fim - sessao.hora_inicio - (sessao.tempo_pausado_ms || 0));
 }
 
-/** Milissegundos que faltam do descanso atual (0 se não há descanso rodando). */
-export function descansoRestante(sessao, agora = Date.now()) {
-  if (!sessao?.descanso_inicio) return 0;
-  return Math.max(0, sessao.descanso_inicio + sessao.descanso_duracao_ms - agora);
-}
-
-/** Tempo decorrido desde um instante qualquer (ex.: série de tempo em andamento). */
+/** Tempo decorrido desde um instante qualquer (descanso, série de tempo em andamento). */
 export const decorrido = (inicio, agora = Date.now()) => Math.max(0, agora - inicio);
 
 /** 75_000 → '1:15' · 3_725_000 → '1:02:05' */

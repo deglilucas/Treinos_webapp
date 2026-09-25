@@ -1,5 +1,9 @@
 // Execução do treino: lista de exercícios com as séries dentro de cada card.
-// Registrar uma série inicia o descanso a partir do instante em que ela terminou.
+//
+// Nenhuma fase termina sozinha. Série de tempo e descanso contam o tempo que
+// passou; o alvo serve só para apitar. Quem avança é o toque: parar a série
+// registra a duração real e começa o descanso; o descanso vai até você
+// encerrar ou registrar a próxima série.
 
 import {
   obterSessao, retomarSessao, pausarSessao, concluirSessao, cancelarSessao,
@@ -9,7 +13,7 @@ import {
 } from '../db/repo.js';
 import { get } from '../db/db.js';
 import {
-  criarTicker, duracaoSessao, descansoRestante, formatarCronometro,
+  criarTicker, duracaoSessao, decorrido, formatarCronometro,
   formatarDuracao, formatarSegundos,
 } from '../lib/timer.js';
 import { montarMidia } from '../lib/midia.js';
@@ -19,8 +23,8 @@ import { icone } from '../ui/icones.js';
 import { abrirSheet } from '../ui/sheet.js';
 import { ir } from '../router.js';
 
-// Se o fim de um timer foi visto com mais atraso que isso, o app estava em
-// segundo plano: não apita, só atualiza a tela.
+// Se o alvo de um timer foi cruzado há mais tempo que isso, o app estava em
+// segundo plano: não apita atrasado, só atualiza a tela.
 const TOLERANCIA_ALERTA_MS = 3000;
 
 const fmtPeso = (p) => (p == null ? '' : String(p).replace('.', ','));
@@ -33,7 +37,6 @@ const lerReps = (txt) => {
   return v > 0 ? v : null;
 };
 const dataCurta = (chave) => `${chave.slice(8, 10)}/${chave.slice(5, 7)}`;
-const cronometroTeto = (ms) => formatarCronometro(Math.ceil(ms / 1000) * 1000);
 
 function resumoReferencia(ref, tipo) {
   if (!ref?.series.length) return 'Primeira vez';
@@ -130,15 +133,16 @@ export async function render(view, sessaoId) {
       texto = formatarCronometro((serie.duracao ?? 0) * 1000);
       acao = 'desfazer'; ic = 'check'; rotulo = `Desfazer série ${numero}`;
     } else if (rodando) {
-      texto = cronometroTeto(emCurso.inicio + emCurso.alvo_ms - Date.now());
+      texto = formatarCronometro(decorrido(emCurso.inicio));
       acao = 'parar-tempo'; ic = 'parar'; rotulo = `Encerrar série ${numero}`;
     }
+    const alvo = `alvo ${formatarCronometro(alvoSeg(item) * 1000)}`;
     const classes = ['serie', 'tempo', serie && 'feita', rodando && 'rodando'].filter(Boolean).join(' ');
     return `
       <div class="${classes}" data-num="${numero}"${serie ? ` data-serie="${serie.id}"` : ''}>
         <span class="serie-num">${numero}</span>
         <span class="serie-tempo" data-cronometro>${texto}</span>
-        <span class="serie-tempo-rotulo">${serie ? 'feito' : rodando ? 'restante' : 'alvo'}</span>
+        <span class="serie-tempo-rotulo">${serie ? 'feito' : rodando ? alvo : 'alvo'}</span>
         <button type="button" class="serie-check" data-acao="${acao}" aria-label="${rotulo}">${icone(ic)}</button>
       </div>`;
   }
@@ -206,11 +210,12 @@ export async function render(view, sessaoId) {
         <div>
           <div class="descanso-rotulo">Descanso</div>
           <div class="descanso-tempo" id="descanso-tempo">0:00</div>
+          <div class="descanso-alvo" id="descanso-alvo"></div>
         </div>
         <div class="descanso-acoes">
-          <button type="button" class="chip" data-descanso="-15">−15s</button>
-          <button type="button" class="chip" data-descanso="15">+15s</button>
-          <button type="button" class="chip chip-destaque" data-descanso="pular">Pular</button>
+          <button type="button" class="chip" data-descanso="-15" aria-label="Diminuir alvo em 15 segundos">−15s</button>
+          <button type="button" class="chip" data-descanso="15" aria-label="Aumentar alvo em 15 segundos">+15s</button>
+          <button type="button" class="chip chip-destaque" data-descanso="encerrar">Encerrar</button>
         </div>
       </div>
     </div>`;
@@ -254,28 +259,19 @@ export async function render(view, sessaoId) {
     });
   }
 
-  let finalizandoTempo = false;
-  async function finalizarSerieTempo(agora) {
+  /** Toque em parar: registra a duração real (antes ou depois do alvo) e começa o descanso. */
+  async function pararSerieTempo() {
     const emCurso = sessao.serie_em_curso;
-    if (!emCurso || finalizandoTempo) return;
-    finalizandoTempo = true;
-    try {
-      const fimAlvo = emCurso.inicio + emCurso.alvo_ms;
-      const fim = Math.min(agora, fimAlvo);
-      const item = itens.find((i) => i.exercicio_id === emCurso.exercicio_id);
-      const duracao = Math.round((fim - emCurso.inicio) / 1000);
-      if (!item || duracao < 1) {
-        sessao = await descartarSerieTempo(sessao.id);
-        if (item) desenharSeries(item);
-        return;
-      }
-      if (agora >= fimAlvo && agora - fimAlvo < TOLERANCIA_ALERTA_MS) alertar();
-      // O descanso conta a partir do fim real da série, mesmo que a tela
-      // só tenha percebido depois (app em segundo plano).
-      await registrar(item, emCurso.numero_serie, { duracao }, fim);
-    } finally {
-      finalizandoTempo = false;
+    if (!emCurso) return;
+    const agora = Date.now();
+    const item = itens.find((i) => i.exercicio_id === emCurso.exercicio_id);
+    const duracao = Math.round((agora - emCurso.inicio) / 1000);
+    if (!item || duracao < 1) {
+      sessao = await descartarSerieTempo(sessao.id);
+      if (item) desenharSeries(item);
+      return;
     }
+    await registrar(item, emCurso.numero_serie, { duracao }, agora);
   }
 
   const lista = $('#lista-exercicios', view);
@@ -308,7 +304,7 @@ export async function render(view, sessaoId) {
         break;
       }
       case 'iniciar-tempo':
-        if (sessao.serie_em_curso) await finalizarSerieTempo(Date.now());
+        if (sessao.serie_em_curso) await pararSerieTempo();
         sessao = await iniciarSerieTempo(sessao.id, {
           exercicio_id: item.exercicio_id,
           numero_serie: Number(linha.dataset.num),
@@ -318,7 +314,7 @@ export async function render(view, sessaoId) {
         tick(Date.now());
         break;
       case 'parar-tempo':
-        await finalizarSerieTempo(Date.now());
+        await pararSerieTempo();
         break;
       case 'mais-serie':
         extras[item.id] = (extras[item.id] ?? 0) + 1;
@@ -361,7 +357,7 @@ export async function render(view, sessaoId) {
     const botao = e.target.closest('[data-descanso]');
     if (!botao || !sessao.descanso_inicio) return;
     const valor = botao.dataset.descanso;
-    sessao = valor === 'pular'
+    sessao = valor === 'encerrar'
       ? await encerrarDescanso(sessao.id, sessao.descanso_inicio)
       : await ajustarDescanso(sessao.id, Number(valor));
     tick(Date.now());
@@ -377,33 +373,39 @@ export async function render(view, sessaoId) {
 
   const elDuracao = $('#duracao-treino', view);
 
+  // Um bipe por alvo: a chave é o instante do alvo, então mudar o alvo
+  // (±15s) rearma o aviso.
+  const alertados = new Set();
+  function apitarSeCruzou(alvoEm, agora) {
+    if (agora < alvoEm || alertados.has(alvoEm)) return;
+    alertados.add(alvoEm);
+    if (agora - alvoEm < TOLERANCIA_ALERTA_MS) alertar();
+  }
+
   function tick(agora) {
     elDuracao.textContent = formatarCronometro(duracaoSessao(sessao, agora));
 
     const emCurso = sessao.serie_em_curso;
     if (emCurso) {
-      const fimAlvo = emCurso.inicio + emCurso.alvo_ms;
-      if (agora >= fimAlvo) finalizarSerieTempo(agora);
-      else {
-        const el = view.querySelector('.serie.rodando [data-cronometro]');
-        if (el) el.textContent = cronometroTeto(fimAlvo - agora);
+      const alvoEm = emCurso.inicio + emCurso.alvo_ms;
+      apitarSeCruzou(alvoEm, agora);
+      const linha = view.querySelector('.serie.rodando');
+      if (linha) {
+        linha.querySelector('[data-cronometro]').textContent = formatarCronometro(decorrido(emCurso.inicio, agora));
+        linha.classList.toggle('passou', agora >= alvoEm);
       }
     }
 
     if (!sessao.descanso_inicio) return mostrarDescanso(false);
-    const restante = descansoRestante(sessao, agora);
-    if (restante > 0) {
-      mostrarDescanso(true);
-      $('#descanso-tempo', view).textContent = cronometroTeto(restante);
-      $('#descanso-barra', view).style.width = `${(restante / sessao.descanso_duracao_ms) * 100}%`;
-      return;
-    }
-    const inicio = sessao.descanso_inicio;
-    const fim = inicio + sessao.descanso_duracao_ms;
-    if (agora - fim < TOLERANCIA_ALERTA_MS) alertar();
-    sessao = { ...sessao, descanso_inicio: null };
-    mostrarDescanso(false);
-    encerrarDescanso(sessao.id, inicio).then((s) => { sessao = s; });
+    const alvoEm = sessao.descanso_inicio + sessao.descanso_duracao_ms;
+    const passou = agora >= alvoEm;
+    apitarSeCruzou(alvoEm, agora);
+    mostrarDescanso(true);
+    barra.classList.toggle('passou', passou);
+    $('#descanso-tempo', view).textContent = formatarCronometro(decorrido(sessao.descanso_inicio, agora));
+    $('#descanso-alvo', view).textContent = `alvo ${formatarCronometro(sessao.descanso_duracao_ms)}`;
+    const fracao = sessao.descanso_duracao_ms ? decorrido(sessao.descanso_inicio, agora) / sessao.descanso_duracao_ms : 1;
+    $('#descanso-barra', view).style.width = `${Math.min(1, fracao) * 100}%`;
   }
 
   const pararTicker = criarTicker(tick);

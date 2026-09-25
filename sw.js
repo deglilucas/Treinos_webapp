@@ -3,7 +3,7 @@
 // A cada deploy que mude arquivos do app, suba VERSAO. O cache de mídia não
 // depende da versão, então os GIFs já vistos continuam disponíveis offline.
 
-const VERSAO = 'v2';
+const VERSAO = 'v3';
 const CACHE_APP = `treinos-app-${VERSAO}`;
 const CACHE_FONTES = 'treinos-fontes';
 const CACHE_MIDIA = 'treinos-midia';

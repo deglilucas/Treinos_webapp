@@ -140,10 +140,10 @@ export const encerrarDescanso = (id, inicioEsperado) => alterarSessao(id, (s) =>
   if (inicioEsperado == null || s.descanso_inicio === inicioEsperado) s.descanso_inicio = null;
 });
 
-export const ajustarDescanso = (id, deltaSeg) => alterarSessao(id, (s, agora) => {
+/** Muda o alvo do descanso (só a referência do bipe; o descanso continua até você encerrar). */
+export const ajustarDescanso = (id, deltaSeg) => alterarSessao(id, (s) => {
   if (!s.descanso_inicio) return;
-  const minimo = agora - s.descanso_inicio; // não dá pra terminar no passado
-  s.descanso_duracao_ms = Math.max(minimo, s.descanso_duracao_ms + deltaSeg * 1000);
+  s.descanso_duracao_ms = Math.max(0, s.descanso_duracao_ms + deltaSeg * 1000);
 });
 
 /** Começa uma série do tipo tempo. Guarda o instante de início na sessão. */
@@ -226,7 +226,8 @@ export async function ultimaReferencia(exercicioId, sessaoAtualId) {
 
 /**
  * Registra a série e, na mesma transação, começa o descanso a partir do
- * instante em que ela terminou (`registradaEm`). `descansoSeg = 0` não inicia descanso.
+ * instante em que ela terminou (`registradaEm`). `descansoSeg` é o alvo do
+ * descanso (quando apitar); 0 não inicia descanso.
  */
 export function registrarSerie({
   sessaoId, exercicioId, numero, peso = null, reps = null, duracao = null,

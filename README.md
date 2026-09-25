@@ -64,6 +64,11 @@ partir de `Date.now()`. O `setInterval` só redesenha a tela, e ela também é
 redesenhada ao voltar do segundo plano (`visibilitychange`/`pageshow`). Como
 tudo fica no IndexedDB, o cronômetro sobrevive até ao app ser fechado.
 
+Nenhuma fase termina sozinha. Série de tempo e descanso contam o tempo que
+passou e apitam quando cruzam o alvo, que é só referência. Parar a série
+registra a duração real e começa o descanso; o descanso segue até você
+encerrar ou registrar a próxima série.
+
 ## GIFs dos exercícios
 
 Cada exercício da biblioteca tem um termo em inglês (`nome_en`) usado na busca
