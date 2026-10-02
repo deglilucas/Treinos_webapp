@@ -7,12 +7,16 @@
 //   app pergunta se quer concluir;
 // - o descanso vai até o toque em "Iniciar série" (ou até registrar a próxima)
 //   e a duração real fica gravada na série que o abriu.
+//
+// A ordem dos exercícios é livre: as abas numeradas no topo mostram quais já
+// foram concluídos e deixam pular para qualquer um (aparelho ocupado). O
+// exercício em foco fica salvo na sessão (item_atual) para a notificação seguir.
 
 import {
   obterSessao, retomarSessao, pausarSessao, concluirSessao, cancelarSessao,
   exerciciosDoTreino, seriesDaSessao, ultimaReferencia, registrarSerie,
   atualizarSerie, removerSerie, encerrarDescanso, ajustarDescanso,
-  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino, salvarRascunhos, salvarExtras,
+  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino, salvarRascunhos, salvarExtras, definirItemAtual,
 } from '../db/repo.js';
 import { get } from '../db/db.js';
 import {
@@ -110,6 +114,22 @@ export async function render(view, sessaoId) {
   const contarPendentes = () =>
     itens.reduce((soma, item) => soma + linhasDo(item).filter((l) => !l.serie).length, 0);
 
+  const itemFeito = (item) => linhasDo(item).every((l) => l.serie);
+
+  // Exercício em foco: o salvo na sessão, senão o primeiro que ainda tem série.
+  let selecionado = itens.find((i) => i.id === sessao.item_atual)
+    ?? itens.find((i) => !itemFeito(i)) ?? itens[0] ?? null;
+
+  /** Próxima série a fazer: começa no exercício em foco e segue a ordem do treino, voltando ao início. */
+  function proximaSerie() {
+    const inicio = Math.max(0, itens.indexOf(selecionado));
+    for (const item of [...itens.slice(inicio), ...itens.slice(0, inicio)]) {
+      const linha = linhasDo(item).find((l) => !l.serie);
+      if (linha) return { item, numero: linha.numero };
+    }
+    return null;
+  }
+
   const alvoSeg = (item) => item.duracao_alvo ?? item.exercicio.duracao_alvo ?? 60;
 
   /**
@@ -200,9 +220,54 @@ export async function render(view, sessaoId) {
     const html = item.exercicio.tipo_registro === 'tempo' ? htmlLinhaTempo : htmlLinhaPesoReps;
     cardDe(item).querySelector('.series').innerHTML = linhasDo(item).map((l) => html(item, l)).join('');
     const feitas = series.length;
-    $('#progresso-series', view).textContent = `${feitas} de ${feitas + contarPendentes()} séries`;
+    const total = feitas + contarPendentes();
+    $('#progresso-series', view).textContent = `${feitas} de ${total} séries`;
+    const pct = total ? Math.round((feitas / total) * 100) : 0;
+    $('#pct-treino', view).textContent = `${pct}%`;
+    $('#barra-treino', view).style.width = `${pct}%`;
+    $('.progresso-treino', view).setAttribute('aria-valuenow', String(pct));
+    marcarProxima();
+    desenharAbas();
+  }
+
+  function marcarProxima() {
     view.querySelector('.serie.proxima')?.classList.remove('proxima');
-    view.querySelector('.serie:not(.feita)')?.classList.add('proxima');
+    if (selecionado) cardDe(selecionado)?.querySelector('.serie:not(.feita)')?.classList.add('proxima');
+  }
+
+  // ---------- Abas dos exercícios ----------
+
+  function desenharAbas() {
+    const emCurso = sessao.serie_em_curso?.exercicio_id;
+    $('#abas', view).innerHTML = itens.map((item, i) => {
+      const feito = itemFeito(item);
+      const atual = item === selecionado;
+      const classes = ['aba', feito && 'feita', atual && 'atual', item.exercicio_id === emCurso && 'rodando'].filter(Boolean).join(' ');
+      const estado = feito ? 'concluído' : atual ? 'em foco' : 'pendente';
+      return `<button type="button" class="${classes}" data-aba="${item.id}"${atual ? ' aria-current="true"' : ''}
+        aria-label="Exercício ${i + 1} de ${itens.length}: ${esc(item.exercicio.nome)}, ${estado}">${feito ? icone('check') : i + 1}</button>`;
+    }).join('');
+    const aba = view.querySelector('.aba.atual');
+    const faixa = $('#abas', view);
+    if (aba) faixa.scrollLeft = aba.offsetLeft - (faixa.clientWidth - aba.offsetWidth) / 2;
+  }
+
+  let esperaAvanco = null;
+
+  /** Mostra só o card do exercício escolhido; os outros ficam escondidos, com o que foi digitado. */
+  function selecionar(item, { salvar = true, rolar = true } = {}) {
+    if (!item) return;
+    clearTimeout(esperaAvanco);
+    const mudou = item !== selecionado;
+    selecionado = item;
+    itens.forEach((i) => { cardDe(i).hidden = i !== item; });
+    marcarProxima();
+    desenharAbas();
+    if (mudou && salvar) definirItemAtual(sessao.id, item.id).then((s) => { sessao = s; }).catch(() => {});
+    if (mudou && rolar) {
+      const topo = cardDe(item).getBoundingClientRect().top + scrollY - $('.sessao-nav', view).offsetHeight - 12;
+      if (scrollY > topo) scrollTo({ top: Math.max(0, topo), behavior: 'smooth' });
+    }
   }
 
   // ---------- Esqueleto da tela ----------
@@ -216,16 +281,19 @@ export async function render(view, sessaoId) {
       </div>
       <button type="button" class="botao-icone" id="menu-sessao" aria-label="Opções do treino">${icone('menu')}</button>
     </header>
-    <div class="cronometro-treino">
-      <span class="cronometro-valor" id="duracao-treino">0:00</span>
-      <span class="cronometro-rotulo">duração</span>
+    <div class="sessao-nav">
+      <div class="sessao-barra">
+        <div class="pilula-tempo">${icone('relogio')}<span id="duracao-treino">0:00</span></div>
+        <div class="progresso-treino" role="progressbar" aria-label="Progresso do treino" aria-valuemin="0" aria-valuemax="100"><span id="barra-treino"></span></div>
+        <span class="progresso-pct" id="pct-treino">0%</span>
+        <button type="button" class="botao-finalizar" id="concluir">Finalizar</button>
+      </div>
+      <div class="sessao-abas" id="abas" role="group" aria-label="Exercícios do treino"></div>
     </div>
 
     <div class="lista" id="lista-exercicios">
       ${itens.length ? itens.map(htmlCard).join('') : '<div class="vazio">Esse treino não tem exercícios. Monte ele em Ajustes.</div>'}
     </div>
-
-    <button type="button" class="botao botao-primario concluir" id="concluir">Concluir treino</button>
 
     <div class="barra-descanso" id="descanso" hidden>
       <div class="descanso-progresso"><span id="descanso-barra"></span></div>
@@ -247,6 +315,8 @@ export async function render(view, sessaoId) {
     desenharSeries(item);
     montarMidia(cardDe(item).querySelector('.midia-mini'), item.exercicio);
   });
+  if (selecionado) selecionar(selecionado, { salvar: false, rolar: false });
+  else desenharAbas();
   if (!itens.length) $('#progresso-series', view).textContent = 'Sem exercícios';
 
   // ---------- Registro ----------
@@ -267,6 +337,10 @@ export async function render(view, sessaoId) {
     desenharSeries(item);
     tick(Date.now());
     if (restantes <= 0) perguntarConclusao();
+    else if (itemFeito(item) && item === selecionado) {
+      // Terminou o exercício: depois de um instante, passa para o próximo que ainda tem série.
+      esperaAvanco = setTimeout(() => { const prox = proximaSerie(); if (prox) selecionar(prox.item); }, 900);
+    }
   }
 
   async function iniciarTempo(item, numero) {
@@ -310,6 +384,11 @@ export async function render(view, sessaoId) {
   }
 
   const lista = $('#lista-exercicios', view);
+
+  $('#abas', view).addEventListener('click', (e) => {
+    const aba = e.target.closest('[data-aba]');
+    if (aba) selecionar(itemPorId.get(aba.dataset.aba));
+  });
 
   lista.addEventListener('click', async (e) => {
     const botao = e.target.closest('[data-acao]');
@@ -410,15 +489,15 @@ export async function render(view, sessaoId) {
       return;
     }
     // "Iniciar série": fecha o descanso. Se a próxima série for de tempo, já dá o play nela.
-    const proxima = view.querySelector('.serie.proxima');
-    const item = proxima && itemPorId.get(proxima.closest('.card-exercicio').dataset.item);
-    if (item?.exercicio.tipo_registro === 'tempo') {
-      await iniciarTempo(item, Number(proxima.dataset.num));
+    const proxima = proximaSerie();
+    if (proxima) selecionar(proxima.item);
+    if (proxima?.item.exercicio.tipo_registro === 'tempo') {
+      await iniciarTempo(proxima.item, proxima.numero);
     } else {
       sessao = await encerrarDescanso(sessao.id, sessao.descanso_inicio);
       tick(Date.now());
     }
-    proxima?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    view.querySelector('.serie.proxima')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
   function mostrarDescanso(visivel) {
@@ -430,6 +509,7 @@ export async function render(view, sessaoId) {
   // Tudo é recalculado a partir dos instantes salvos na sessão.
 
   const elDuracao = $('#duracao-treino', view);
+  let abaRodando = sessao.serie_em_curso?.exercicio_id;
 
   // Um bipe por alvo: a chave é o instante do alvo, então mudar o alvo
   // (±15s) rearma o aviso.
@@ -442,6 +522,8 @@ export async function render(view, sessaoId) {
 
   function tick(agora) {
     elDuracao.textContent = formatarCronometro(duracaoSessao(sessao, agora));
+    const alvoAba = sessao.serie_em_curso?.exercicio_id;
+    if (alvoAba !== abaRodando) { abaRodando = alvoAba; desenharAbas(); }
 
     const emCurso = sessao.serie_em_curso;
     if (emCurso) {
@@ -519,6 +601,7 @@ export async function render(view, sessaoId) {
       });
       if (!ok) {
         const linha = view.querySelector('.serie.a-preencher');
+        if (linha) selecionar(itemPorId.get(linha.closest('.card-exercicio').dataset.item), { rolar: false });
         linha?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         linha?.querySelector('[name=reps]')?.focus();
         return;
@@ -582,6 +665,7 @@ export async function render(view, sessaoId) {
 
   return () => {
     pararTicker();
+    clearTimeout(esperaAvanco);
     document.removeEventListener('visibilitychange', aoEsconder);
     if (esperaRascunho) persistirRascunhos();
     document.removeEventListener('visibilitychange', pedirWakeLock);

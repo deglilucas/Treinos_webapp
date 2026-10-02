@@ -164,6 +164,9 @@ export const salvarRascunhos = (id, rascunhos) => alterarSessao(id, (s) => { s.r
 /** Séries adicionadas além do planejado ({ itemId: quantas }), para sobreviver e a notificação contar. */
 export const salvarExtras = (id, extras) => alterarSessao(id, (s) => { s.extras = extras; });
 
+/** Exercício que você está fazendo agora (id do item do treino): a notificação segue a partir dele. */
+export const definirItemAtual = (id, itemId) => alterarSessao(id, (s) => { s.item_atual = itemId; });
+
 /** Muda o alvo do descanso (só a referência do bipe; o descanso continua até você encerrar). */
 export const ajustarDescanso = (id, deltaSeg) => alterarSessao(id, (s) => {
   if (!s.descanso_inicio) return;
