@@ -76,6 +76,13 @@ não abre, e o app pergunta se quer concluir. O descanso vai até o toque em
 "Iniciar série" (ou até registrar a próxima) e a duração real fica em
 `descanso_seg` da série que o abriu.
 
+A ordem dos exercícios é livre. Na tela do treino, abas numeradas mostram
+quais já foram concluídos e qual está em foco; tocar numa aba mostra aquele
+exercício (aparelho ocupado, por exemplo). O foco fica em `sessao.item_atual`
+e a próxima série, na tela e na notificação, é a primeira pendente a partir
+dele, seguindo a ordem do treino e voltando ao começo. Ao terminar um
+exercício o foco passa para o próximo que ainda tem série.
+
 ## Notificação do treino
 
 Ativada em Ajustes (ou no convite do primeiro treino). Com um treino rodando e

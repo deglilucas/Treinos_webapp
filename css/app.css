@@ -340,21 +340,6 @@ svg.icone { width: 24px; height: 24px; flex: none; }
 .sessao-topo .item-texto { flex: 1; }
 .sessao-topo .botao-icone svg { width: 22px; height: 22px; }
 
-.cronometro-treino {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 20px 0 24px;
-}
-.cronometro-valor {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 44px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.cronometro-rotulo { color: var(--text-2); font-size: 14px; }
-
 .card-exercicio { padding: 16px; }
 .ex-topo { display: flex; gap: 14px; align-items: flex-start; }
 .ex-info { min-width: 0; flex: 1; }
@@ -470,7 +455,6 @@ svg.icone { width: 24px; height: 24px; flex: none; }
 }
 .botao-texto svg { width: 16px; height: 16px; }
 
-.botao.concluir { margin-top: 24px; }
 
 .view.com-descanso { padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 120px); }
 
@@ -962,3 +946,170 @@ select.entrada {
 .serie.feita.a-preencher { background: transparent; box-shadow: inset 0 0 0 1px var(--accent-line); }
 .serie.feita.a-preencher .campo { background: var(--bg); border-color: var(--accent-line); }
 .serie.feita.a-preencher .campo::placeholder { color: var(--accent); opacity: 0.7; }
+
+/* ---------- Execução: barra fixa e abas dos exercícios ---------- */
+.sessao-nav {
+  position: sticky;
+  top: var(--safe-top);
+  z-index: 12;
+  margin: 16px calc(-1 * var(--gutter)) 16px;
+  padding: 10px var(--gutter) 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--glass-borda);
+}
+.sessao-barra { display: flex; align-items: center; gap: 10px; }
+.pilula-tempo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--glass-borda);
+  border-radius: 999px;
+  background: var(--glass);
+  box-shadow: var(--glass-brilho);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.pilula-tempo svg { width: 20px; height: 20px; }
+.progresso-treino {
+  flex: 1;
+  min-width: 36px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.progresso-treino span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.progresso-pct {
+  min-width: 3ch;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.botao-finalizar {
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  box-shadow: var(--glass-brilho);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.botao-finalizar:active { transform: scale(0.97); }
+
+.sessao-abas {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 4px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sessao-abas::-webkit-scrollbar { display: none; }
+.aba {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--glass-borda);
+  border-radius: 50%;
+  background: var(--glass);
+  box-shadow: var(--glass-brilho);
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.aba svg { width: 18px; height: 18px; }
+.aba.feita { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.aba.atual {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 18px rgba(79, 140, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+/* Série de tempo rodando neste exercício */
+.aba.rodando::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+}
+.aba.atual.rodando::after { background: var(--on-accent); border-color: var(--accent); }
+
+/* ---------- Vidro ---------- */
+/* Botões e controles: camada clara translúcida com brilho no topo. */
+.botao:not(.botao-primario):not(.botao-perigo):not(.botao-fantasma),
+.chip:not(.chip-destaque),
+.stepper-botao,
+.segmentado {
+  background: var(--glass);
+  border-color: var(--glass-borda);
+  box-shadow: var(--glass-brilho);
+}
+.botao-perigo { background: var(--glass); box-shadow: var(--glass-brilho); }
+.chip-filtro:not([aria-pressed="true"]) { background: var(--glass); border-color: var(--glass-borda); box-shadow: var(--glass-brilho); }
+.chip-filtro[aria-pressed="true"], .chip-destaque, .segmentado button[aria-pressed="true"] { box-shadow: var(--glass-brilho); }
+.botao-primario,
+.chip-destaque {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 60%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 20px rgba(79, 140, 255, 0.22);
+}
+.botao:disabled { box-shadow: none; }
+
+/* Tab bar: o conteúdo rola por baixo, desfocado; a aba ativa vira uma pílula de vidro azul. */
+.tabbar { background: var(--glass-painel); border-top-color: var(--glass-borda); }
+.tab {
+  margin: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.tab[aria-current="page"] {
+  background: linear-gradient(180deg, rgba(79, 140, 255, 0.20), rgba(79, 140, 255, 0.08));
+  border-color: var(--accent-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 22px rgba(79, 140, 255, 0.16);
+}
+
+.barra-descanso, .toast { background: var(--glass-painel); border-color: var(--glass-borda); }
+.sheet { background: var(--glass-painel); border-color: var(--glass-borda); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.sessao-nav { background: var(--glass-painel); }
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .tabbar { background: rgba(14, 15, 19, 0.62); }
+  .barra-descanso, .toast { background: rgba(29, 32, 39, 0.62); }
+  .sheet { background: rgba(24, 26, 32, 0.68); }
+  .sessao-nav { background: rgba(14, 15, 19, 0.66); }
+  .tabbar, .barra-descanso, .toast, .sheet, .sessao-nav {
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+  .sheet-fundo { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+}

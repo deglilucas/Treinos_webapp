@@ -59,10 +59,15 @@ async function carregarTreino(db) {
   });
 }
 
-/** Séries planejadas (e as extras do "+ Série") ainda não feitas, na ordem do treino. */
+/**
+ * Séries planejadas (e as extras do "+ Série") ainda não feitas. A ordem de
+ * execução é livre: a fila começa no exercício em foco (sessao.item_atual) e
+ * segue a ordem do treino dali, voltando ao começo.
+ */
 function pendentes({ sessao, itens, series }) {
+  const inicio = Math.max(0, itens.findIndex((i) => i.id === sessao.item_atual));
   const lista = [];
-  for (const item of itens) {
+  for (const item of [...itens.slice(inicio), ...itens.slice(0, inicio)]) {
     const feitas = new Set(series.filter((s) => s.exercicio_id === item.exercicio_id).map((s) => s.numero_serie));
     const total = item.series + (sessao.extras?.[item.id] ?? 0);
     for (let n = 1; n <= total; n++) if (!feitas.has(n)) lista.push({ item, numero: n });
@@ -284,6 +289,7 @@ async function executarAcao(acao) {
       if (acao === 'iniciar') {
         await fecharDescansoSW(t, sessao, agora);
         const proxima = fila[0];
+        if (proxima) sessao.item_atual = proxima.item.id;
         if (proxima?.item.exercicio.tipo_registro === 'tempo' && !sessao.serie_em_curso) {
           sessao.serie_em_curso = {
             exercicio_id: proxima.item.exercicio_id, numero_serie: proxima.numero,
@@ -309,6 +315,8 @@ async function executarAcao(acao) {
           sessao.descanso_duracao_ms = item.descanso_padrao * 1000;
           sessao.descanso_serie_id = serie.id;
         }
+        // Terminou o exercício: o foco passa para o próximo que ainda tem série.
+        if (restantes.length && !restantes.some((p) => p.item.id === item?.id)) sessao.item_atual = restantes[0].item.id;
       }
       sessoes.put(sessao);
     });
