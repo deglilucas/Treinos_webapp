@@ -11,6 +11,7 @@ import { duracaoSessao, formatarDuracao } from '../lib/timer.js';
 import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { ir } from '../router.js';
+import { HTML_OPCAO_DESCANSO, ligarOpcaoDescanso } from '../ui/opcao-descanso.js';
 import * as detalhe from './sessao-detalhe.js';
 import { lembreteBackup, adiarLembreteBackup, baixarBackup, resumoBackup } from '../db/backup.js';
 
@@ -104,8 +105,8 @@ function acaoPrincipal(sugestao) {
   return {
     legenda: nome,
     rotulo: 'Iniciar treino de hoje',
-    executar: async () => {
-      const sessao = await iniciarSessao(sugestao.treino.id);
+    executar: async ({ semDescanso }) => {
+      const sessao = await iniciarSessao(sugestao.treino.id, { semDescanso });
       ir(`treinar/sessao/${sessao.id}`);
     },
   };
@@ -151,6 +152,7 @@ export async function render(view, rota) {
 
     <div class="acao-fixa">
       <div class="acao-legenda">${esc(acao.legenda)}</div>
+      ${sugestao?.treino && !sugestao.sessao ? HTML_OPCAO_DESCANSO : ''}
       <button type="button" class="botao botao-primario" id="acao-principal">${esc(acao.rotulo)}</button>
     </div>`;
 
@@ -163,7 +165,8 @@ export async function render(view, rota) {
       desenharCalendario(view, treinosPorId);
     };
   });
-  $('#acao-principal', view).onclick = acao.executar;
+  const descansoLigado = view.querySelector('#opcao-descanso') ? ligarOpcaoDescanso(view) : () => true;
+  $('#acao-principal', view).onclick = () => acao.executar({ semDescanso: !descansoLigado() });
 
   // Lembrete de backup: tudo fica só neste aparelho.
   const lembrete = await lembreteBackup();

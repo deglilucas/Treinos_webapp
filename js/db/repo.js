@@ -82,7 +82,7 @@ export async function sugerirTreino() {
 // ---------- Sessões: ciclo de vida ----------
 
 /** Cria a sessão em rascunho. Se já houver uma em andamento, devolve ela. */
-export async function iniciarSessao(treinoId) {
+export async function iniciarSessao(treinoId, { semDescanso = false } = {}) {
   const ativa = await sessaoAtiva();
   if (ativa) return ativa;
   const agora = Date.now();
@@ -98,6 +98,7 @@ export async function iniciarSessao(treinoId) {
     descanso_inicio: null,
     descanso_duracao_ms: 0,
     serie_em_curso: null,
+    ...(semDescanso ? { sem_descanso: true } : {}),
   };
   await put('sessoes', sessao);
   return sessao;
@@ -163,6 +164,12 @@ export const salvarRascunhos = (id, rascunhos) => alterarSessao(id, (s) => { s.r
 
 /** Séries adicionadas além do planejado ({ itemId: quantas }), para sobreviver e a notificação contar. */
 export const salvarExtras = (id, extras) => alterarSessao(id, (s) => { s.extras = extras; });
+
+/** Liga ou desliga o timer de descanso no meio do treino; desligar encerra o que estiver rodando. */
+export const definirDescanso = (id, ligado) => alterarSessao(id, async (s, agora, t) => {
+  s.sem_descanso = !ligado;
+  if (!ligado) await fecharDescanso(t, s, agora);
+});
 
 /** Exercício que você está fazendo agora (id do item do treino): a notificação segue a partir dele. */
 export const definirItemAtual = (id, itemId) => alterarSessao(id, (s) => { s.item_atual = itemId; });

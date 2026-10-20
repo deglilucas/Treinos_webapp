@@ -32,7 +32,7 @@ svg.icone { width: 24px; height: 24px; flex: none; }
 }
 
 /* Tela com botão de ação fixo acima da tabbar */
-.view.com-acao { padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 136px); }
+.view.com-acao { padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 196px); }
 
 /* ---------- Tipografia ---------- */
 .titulo {
@@ -1113,3 +1113,19 @@ select.entrada {
   }
   .sheet-fundo { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 }
+
+/* Escolha de timer de descanso, acima do botão de iniciar */
+.linha-descanso {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid var(--glass-borda);
+  border-radius: var(--radius-btn);
+  background: var(--glass);
+  box-shadow: var(--glass-brilho);
+}
+.linha-descanso .item-texto { flex: 1; }
+.linha-descanso .item-titulo { font-size: 15px; }
+.linha-descanso .item-sub { font-size: 12px; color: var(--text-3); }

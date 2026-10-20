@@ -9,6 +9,7 @@ import { rotuloDia } from '../lib/datas.js';
 import { esc, $ } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { ir } from '../router.js';
+import { HTML_OPCAO_DESCANSO, ligarOpcaoDescanso } from '../ui/opcao-descanso.js';
 import * as sessao from './sessao.js';
 
 export async function render(view, { params, query }) {
@@ -52,10 +53,12 @@ export async function render(view, { params, query }) {
         </button>`).join('') : '<div class="vazio">Nenhum treino montado ainda.</div>'}
     </div>
     <div class="acao-fixa">
+      ${HTML_OPCAO_DESCANSO}
       <button type="button" class="botao botao-primario" id="iniciar"></button>
     </div>`;
 
   const botao = $('#iniciar', view);
+  const descansoLigado = ligarOpcaoDescanso(view);
 
   function atualizar() {
     view.querySelectorAll('.opcao-treino').forEach((el) =>
@@ -74,7 +77,7 @@ export async function render(view, { params, query }) {
 
   botao.onclick = async () => {
     if (!selecionado) return ir('ajustes');
-    const nova = await iniciarSessao(selecionado);
+    const nova = await iniciarSessao(selecionado, { semDescanso: !descansoLigado() });
     ir(`treinar/sessao/${nova.id}`);
   };
 

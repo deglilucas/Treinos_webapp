@@ -310,7 +310,7 @@ async function executarAcao(acao) {
         sessao.serie_em_curso = null;
         // Toda série abre descanso, menos a última do treino.
         const restantes = fila.filter((p) => !(p.item.exercicio_id === registrar.exercicio_id && p.numero === registrar.numero));
-        if (restantes.length && item?.descanso_padrao > 0) {
+        if (restantes.length && item?.descanso_padrao > 0 && !sessao.sem_descanso) {
           sessao.descanso_inicio = agora;
           sessao.descanso_duracao_ms = item.descanso_padrao * 1000;
           sessao.descanso_serie_id = serie.id;
