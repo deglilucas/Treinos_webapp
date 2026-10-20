@@ -36,6 +36,7 @@ const APP_SHELL = [
   './js/lib/traducao.js',
   './js/lib/treino-aberto.js',
   './js/ui/dom.js',
+  './js/ui/opcao-descanso.js',
   './js/ui/icones.js',
   './js/ui/sheet.js',
   './js/ui/controles.js',

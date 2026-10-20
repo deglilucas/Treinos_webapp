@@ -83,6 +83,12 @@ e a próxima série, na tela e na notificação, é a primeira pendente a partir
 dele, seguindo a ordem do treino e voltando ao começo. Ao terminar um
 exercício o foco passa para o próximo que ainda tem série.
 
+O timer de descanso é opcional. Ao iniciar o treino (Início ou Treinar) há um
+interruptor "Timer de descanso" que lembra a última escolha; desligado, o
+treino fica em `sessao.sem_descanso` e nenhuma série abre descanso (nem pela
+notificação), só carga e repetições. Dá para ligar ou desligar também no
+menu do treino.
+
 ## Notificação do treino
 
 Ativada em Ajustes (ou no convite do primeiro treino). Com um treino rodando e

@@ -16,7 +16,7 @@ import {
   obterSessao, retomarSessao, pausarSessao, concluirSessao, cancelarSessao,
   exerciciosDoTreino, seriesDaSessao, ultimaReferencia, registrarSerie,
   atualizarSerie, removerSerie, encerrarDescanso, ajustarDescanso,
-  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino, salvarRascunhos, salvarExtras, definirItemAtual,
+  iniciarSerieTempo, descartarSerieTempo, nomeCompletoTreino, salvarRascunhos, salvarExtras, definirItemAtual, definirDescanso,
 } from '../db/repo.js';
 import { get } from '../db/db.js';
 import {
@@ -190,12 +190,15 @@ export async function render(view, sessaoId) {
       </div>`;
   }
 
+  const textoMeta = (item) => {
+    const tempo = item.exercicio.tipo_registro === 'tempo';
+    const base = tempo ? `${item.series} × ${formatarCronometro(alvoSeg(item) * 1000)}` : `${item.series} séries`;
+    return sessao.sem_descanso ? base : `${base} · descanso ${formatarSegundos(item.descanso_padrao)}`;
+  };
+
   function htmlCard(item) {
     const ex = item.exercicio;
     const tempo = ex.tipo_registro === 'tempo';
-    const meta = tempo
-      ? `${item.series} × ${formatarCronometro(alvoSeg(item) * 1000)}`
-      : `${item.series} séries`;
     return `
       <article class="card card-exercicio" data-item="${item.id}">
         <div class="ex-topo">
@@ -203,7 +206,7 @@ export async function render(view, sessaoId) {
             aria-label="Ver execução: ${esc(ex.nome)}"></button>
           <div class="ex-info">
             <h3 class="ex-nome">${esc(ex.nome)}</h3>
-            <div class="ex-meta">${meta} · descanso ${formatarSegundos(item.descanso_padrao)}</div>
+            <div class="ex-meta">${textoMeta(item)}</div>
             <div class="ex-ref">${esc(resumoReferencia(refs.get(item.id), ex.tipo_registro))}</div>
           </div>
         </div>
@@ -329,7 +332,7 @@ export async function render(view, sessaoId) {
       numero,
       ...valores,
       registradaEm,
-      descansoSeg: restantes > 0 ? item.descanso_padrao : 0,
+      descansoSeg: restantes > 0 && !sessao.sem_descanso ? item.descanso_padrao : 0,
     });
     sessao = r.sessao;
     series = [...series, r.serie];
@@ -568,11 +571,17 @@ export async function render(view, sessaoId) {
   $('#menu-sessao', view).onclick = async () => {
     const escolha = await abrirSheet({
       acoes: [
+        { id: 'descanso', rotulo: sessao.sem_descanso ? 'Ligar timer de descanso' : 'Desligar timer de descanso' },
         { id: 'pausar', rotulo: 'Pausar e sair' },
         { id: 'cancelar', rotulo: 'Cancelar treino', perigo: true },
       ],
     });
-    if (escolha === 'pausar') {
+    if (escolha === 'descanso') {
+      sessao = await definirDescanso(sessao.id, !!sessao.sem_descanso);
+      itens.forEach((item) => { cardDe(item).querySelector('.ex-meta').textContent = textoMeta(item); });
+      tick(Date.now());
+      toast(sessao.sem_descanso ? 'Timer de descanso desligado' : 'Timer de descanso ligado');
+    } else if (escolha === 'pausar') {
       await pausarSessao(sessao.id);
       ir('inicio');
     } else if (escolha === 'cancelar') {
