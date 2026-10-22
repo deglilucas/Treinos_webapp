@@ -12,6 +12,7 @@ import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { cabecalhoVoltar, stepper } from '../ui/controles.js';
 import { abrirSheet } from '../ui/sheet.js';
+import { ligarSeletores } from '../ui/seletor-numero.js';
 import { ir } from '../router.js';
 
 const fmtPeso = (p) => (p == null ? '' : String(p).replace('.', ','));
@@ -90,8 +91,8 @@ export async function render(view, sessaoId, voltarPara) {
   function htmlLinha(serie, tempo) {
     const campos = tempo
       ? `<input class="campo" name="duracao" inputmode="text" autocomplete="off" value="${formatarCronometro((serie.duracao ?? 0) * 1000)}" aria-label="Duração da série ${serie.numero_serie} (min:seg)">`
-      : `<input class="campo" name="peso" inputmode="decimal" autocomplete="off" placeholder="—" value="${esc(fmtPeso(serie.peso))}" aria-label="Peso da série ${serie.numero_serie} em kg">
-         <input class="campo" name="reps" inputmode="numeric" autocomplete="off" value="${esc(serie.reps ?? '')}" aria-label="Repetições da série ${serie.numero_serie}">`;
+      : `<input class="campo" name="peso" readonly autocomplete="off" placeholder="—" value="${esc(fmtPeso(serie.peso))}" aria-label="Peso da série ${serie.numero_serie} em kg">
+         <input class="campo" name="reps" readonly autocomplete="off" value="${esc(serie.reps ?? '')}" aria-label="Repetições da série ${serie.numero_serie}">`;
     return `
       <div class="serie feita${tempo ? ' serie-edicao-tempo' : ''}${serie.a_preencher ? ' a-preencher' : ''}" data-serie="${esc(serie.id)}">
         <span class="serie-num">${serie.numero_serie}</span>
@@ -118,6 +119,7 @@ export async function render(view, sessaoId, voltarPara) {
     desenharStats();
   }
   desenhar();
+  ligarSeletores(lista);
 
   // Corrigir valores: salva ao sair do campo; valor inválido volta ao anterior.
   lista.addEventListener('change', async (e) => {

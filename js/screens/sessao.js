@@ -29,6 +29,7 @@ import { deveOferecer, marcarOferecido, ativar } from '../lib/notificacoes.js';
 import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { abrirSheet } from '../ui/sheet.js';
+import { ligarSeletores } from '../ui/seletor-numero.js';
 import { ir } from '../router.js';
 
 // Se o alvo de um timer foi cruzado há mais tempo que isso, o app estava em
@@ -156,9 +157,9 @@ export async function render(view, sessaoId) {
     return `
       <div class="serie${serie ? ' feita' : ''}${aPreencher ? ' a-preencher' : ''}" data-num="${numero}"${serie ? ` data-serie="${serie.id}"` : ''}>
         <span class="serie-num">${numero}</span>
-        <input class="campo" name="peso" inputmode="decimal" autocomplete="off" placeholder="${aPreencher ? 'kg' : '—'}"
+        <input class="campo" name="peso" readonly autocomplete="off" placeholder="${aPreencher ? 'kg' : '—'}"
           value="${esc(valores.peso)}" aria-label="Peso da série ${numero} em kg">
-        <input class="campo" name="reps" inputmode="numeric" autocomplete="off" placeholder="${aPreencher ? 'reps' : '—'}"
+        <input class="campo" name="reps" readonly autocomplete="off" placeholder="${aPreencher ? 'reps' : '—'}"
           value="${esc(valores.reps)}" aria-label="Repetições da série ${numero}">
         <button type="button" class="serie-check" data-acao="${serie ? 'desfazer' : 'registrar'}"
           aria-label="${serie ? `Desfazer série ${numero}` : `Registrar série ${numero}`}">${icone('check')}</button>
@@ -387,6 +388,7 @@ export async function render(view, sessaoId) {
   }
 
   const lista = $('#lista-exercicios', view);
+  ligarSeletores(lista);
 
   $('#abas', view).addEventListener('click', (e) => {
     const aba = e.target.closest('[data-aba]');
