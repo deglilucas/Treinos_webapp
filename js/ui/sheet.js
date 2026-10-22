@@ -37,3 +37,53 @@ export function abrirSheet({ titulo, texto, acoes, rotuloFechar = 'Voltar' }) {
     document.body.append(fundo);
   });
 }
+
+/**
+ * Painel para digitar um tempo em minutos e segundos.
+ * @param {{titulo: string, segundos: number}} opcoes
+ * @returns {Promise<number|null>} total em segundos, ou null se fechou
+ */
+export function pedirTempo({ titulo, segundos }) {
+  return new Promise((resolve) => {
+    const fundo = document.createElement('div');
+    fundo.className = 'sheet-fundo';
+    fundo.innerHTML = `
+      <form class="sheet" role="dialog" aria-modal="true" aria-label="${esc(titulo)}">
+        <h2 class="sheet-titulo">${esc(titulo)}</h2>
+        <div class="form-linha campo-tempo">
+          <label class="campo-rotulo campo-cresce">Minutos
+            <input class="entrada" name="min" type="number" inputmode="numeric" min="0" max="999" value="${Math.floor(segundos / 60)}">
+          </label>
+          <label class="campo-rotulo campo-cresce">Segundos
+            <input class="entrada" name="seg" type="number" inputmode="numeric" min="0" max="59" value="${segundos % 60}">
+          </label>
+        </div>
+        <div class="sheet-acoes">
+          <button type="submit" class="botao botao-primario">Salvar</button>
+          <button type="button" class="botao botao-fantasma" data-fechar>Voltar</button>
+        </div>
+      </form>`;
+
+    const fechar = (valor) => {
+      fundo.remove();
+      window.removeEventListener('hashchange', aoNavegar);
+      resolve(valor);
+    };
+    const aoNavegar = () => fechar(null);
+    const form = fundo.querySelector('form');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const min = Math.max(0, parseInt(form.min.value, 10) || 0);
+      const seg = Math.max(0, parseInt(form.seg.value, 10) || 0);
+      fechar(min * 60 + seg);
+    });
+    fundo.addEventListener('click', (e) => {
+      if (e.target === fundo || e.target.closest('[data-fechar]')) fechar(null);
+    });
+    window.addEventListener('hashchange', aoNavegar);
+    document.body.append(fundo);
+    form.min.focus();
+    form.min.select();
+  });
+}

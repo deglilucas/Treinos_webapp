@@ -661,6 +661,16 @@ select.entrada {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
+.stepper-valor-editavel {
+  height: 40px;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-decoration: underline dotted var(--text-3);
+  text-underline-offset: 4px;
+}
+.campo-tempo { margin-top: 16px; }
 
 .item-editor { padding: 14px 14px 16px; }
 .item-editor-topo { display: flex; align-items: center; gap: 8px; }
