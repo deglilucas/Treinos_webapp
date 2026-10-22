@@ -12,6 +12,10 @@
   --accent-line: rgba(79, 140, 255, 0.32);
   --on-accent: #0E0F13;
 
+  --success: #3DD68C;
+  --success-soft: rgba(61, 214, 140, 0.14);
+  --success-line: rgba(61, 214, 140, 0.4);
+
   --danger: #FF6B6B;
   --danger-soft: rgba(255, 107, 107, 0.12);
 

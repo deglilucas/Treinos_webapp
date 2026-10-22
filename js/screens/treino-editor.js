@@ -10,7 +10,7 @@ import { formatarSegundos, formatarCronometro } from '../lib/timer.js';
 import { esc, $, toast } from '../ui/dom.js';
 import { icone } from '../ui/icones.js';
 import { cabecalhoVoltar, stepper } from '../ui/controles.js';
-import { abrirSheet } from '../ui/sheet.js';
+import { abrirSheet, pedirTempo } from '../ui/sheet.js';
 import { ir } from '../router.js';
 
 const alvoDe = (item) => item.duracao_alvo ?? item.exercicio.duracao_alvo ?? 60;
@@ -40,7 +40,7 @@ function htmlItem(item, indice, total) {
   const ex = item.exercicio;
   const linha = (campo, rotulo) => `
     <span class="config-rotulo">${rotulo}</span>
-    ${stepper(campo, CONTROLES[campo].texto(CONTROLES[campo].valor(item)), rotulo.toLowerCase())}`;
+    ${stepper(campo, CONTROLES[campo].texto(CONTROLES[campo].valor(item)), rotulo.toLowerCase(), campo === 'duracao_alvo')}`;
   return `
     <article class="card item-editor" data-item="${esc(item.id)}">
       <div class="item-editor-topo">
@@ -117,6 +117,12 @@ export async function render(view, treinoId) {
     if (!card) return;
     const item = itens.find((i) => i.id === card.dataset.item);
 
+    const aplicar = async (campo, novo) => {
+      item[campo] = novo;
+      card.querySelector(`[data-stepper="${campo}"] .stepper-valor`).textContent = CONTROLES[campo].texto(novo);
+      await atualizarItemTreino(item.id, { [campo]: novo });
+    };
+
     const passo = e.target.closest('[data-campo]');
     if (passo) {
       const regra = CONTROLES[passo.dataset.campo];
@@ -124,9 +130,19 @@ export async function render(view, treinoId) {
       const atual = regra.valor(item);
       const novo = Math.min(regra.max, Math.max(regra.min, atual + delta * regra.passo(atual, delta)));
       if (novo === atual) return;
-      item[passo.dataset.campo] = novo;
-      card.querySelector(`[data-stepper="${passo.dataset.campo}"] .stepper-valor`).textContent = regra.texto(novo);
-      await atualizarItemTreino(item.id, { [passo.dataset.campo]: novo });
+      await aplicar(passo.dataset.campo, novo);
+      return;
+    }
+
+    const editar = e.target.closest('[data-editar]');
+    if (editar) {
+      const campo = editar.dataset.editar;
+      const regra = CONTROLES[campo];
+      const atual = regra.valor(item);
+      const digitado = await pedirTempo({ titulo: `Alvo de ${item.exercicio.nome}`, segundos: atual });
+      if (digitado == null) return;
+      const novo = Math.min(regra.max, Math.max(regra.min, digitado));
+      if (novo !== atual) await aplicar(campo, novo);
       return;
     }
 

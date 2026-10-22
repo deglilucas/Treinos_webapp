@@ -13,12 +13,18 @@ export function cabecalhoVoltar(titulo, destino, acaoDireita = '') {
     </header>`;
 }
 
-/** Controle − valor +. Os botões levam data-campo e data-delta. */
-export function stepper(campo, valorTexto, rotulo) {
+/**
+ * Controle − valor +. Os botões levam data-campo e data-delta.
+ * Com `editavel`, o valor vira um botão (data-editar) para digitar direto.
+ */
+export function stepper(campo, valorTexto, rotulo, editavel = false) {
+  const valor = editavel
+    ? `<button type="button" class="stepper-valor stepper-valor-editavel" data-editar="${campo}" aria-label="Digitar ${esc(rotulo)}">${esc(valorTexto)}</button>`
+    : `<span class="stepper-valor">${esc(valorTexto)}</span>`;
   return `
     <div class="stepper" data-stepper="${campo}">
       <button type="button" class="stepper-botao" data-campo="${campo}" data-delta="-1" aria-label="Diminuir ${esc(rotulo)}">−</button>
-      <span class="stepper-valor">${esc(valorTexto)}</span>
+      ${valor}
       <button type="button" class="stepper-botao" data-campo="${campo}" data-delta="1" aria-label="Aumentar ${esc(rotulo)}">+</button>
     </div>`;
 }

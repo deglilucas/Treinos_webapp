@@ -8,7 +8,7 @@ import { GRUPOS, EQUIPAMENTOS } from '../db/seed.js';
 import { formatarCronometro } from '../lib/timer.js';
 import { esc, $, toast } from '../ui/dom.js';
 import { cabecalhoVoltar, stepper } from '../ui/controles.js';
-import { abrirSheet } from '../ui/sheet.js';
+import { abrirSheet, pedirTempo } from '../ui/sheet.js';
 import { ir } from '../router.js';
 import { montarMidia, imagemIdDe } from '../lib/midia.js';
 
@@ -61,7 +61,7 @@ export async function render(view, id, query) {
       </div>
 
       <div class="campo-rotulo" id="bloco-alvo"${tipo === 'tempo' ? '' : ' hidden'}>Duração alvo
-        ${stepper('alvo', formatarCronometro(alvo * 1000), 'duração alvo')}
+        ${stepper('alvo', formatarCronometro(alvo * 1000), 'duração alvo', true)}
       </div>
 
       <div class="campo-rotulo">Imagem de execução
@@ -95,7 +95,14 @@ export async function render(view, id, query) {
     };
   });
 
-  $('#bloco-alvo', view).addEventListener('click', (e) => {
+  $('#bloco-alvo', view).addEventListener('click', async (e) => {
+    if (e.target.closest('[data-editar]')) {
+      const digitado = await pedirTempo({ titulo: 'Duração alvo', segundos: alvo });
+      if (digitado == null) return;
+      alvo = Math.min(3600, Math.max(5, digitado));
+      $('#bloco-alvo .stepper-valor', view).textContent = formatarCronometro(alvo * 1000);
+      return;
+    }
     const b = e.target.closest('[data-delta]');
     if (!b) return;
     const delta = Number(b.dataset.delta);
