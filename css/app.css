@@ -404,6 +404,7 @@ svg.icone { width: 24px; height: 24px; flex: none; }
   outline: none;
 }
 .campo:focus { border-color: var(--accent); }
+.campo[readonly] { cursor: pointer; caret-color: transparent; }
 .campo::placeholder { color: var(--text-3); }
 .campo.erro { border-color: var(--danger); }
 .serie.feita .campo { background: transparent; border-color: transparent; }
@@ -671,6 +672,54 @@ select.entrada {
   text-underline-offset: 4px;
 }
 .campo-tempo { margin-top: 16px; }
+
+/* Seletor em rodas (peso e reps) */
+.rodas { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.roda { flex: 1; max-width: 120px; min-width: 0; text-align: center; }
+.roda-rotulo {
+  display: block;
+  margin-bottom: 6px;
+  height: 28px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.roda-janela { position: relative; height: 220px; }
+.roda-faixa {
+  position: absolute;
+  inset: 88px 0 auto;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+}
+.roda-lista {
+  position: relative;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 88px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent);
+  mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent);
+}
+.roda-lista::-webkit-scrollbar { display: none; }
+.roda-item {
+  height: 44px;
+  display: grid;
+  place-items: center;
+  scroll-snap-align: center;
+  font: 700 24px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.roda-sep { flex: none; width: 14px; }
+.roda-sep .roda-janela { display: grid; place-items: center; font: 700 24px/1 var(--font-display); }
 
 .item-editor { padding: 14px 14px 16px; }
 .item-editor-topo { display: flex; align-items: center; gap: 8px; }
